@@ -1,15 +1,20 @@
-# Ralph-to-Ralph: Autonomous Product Cloner
+# namuh-linear: Linear Clone
 
 ## What This Is
-A three-phase autonomous system that clones any SaaS product from just a URL.
-Phase 1: Inspect (Claude + Ever CLI) → Phase 2: Build (Claude) → Phase 3: QA (Codex + Ever CLI)
+A production-grade clone of [linear.app](https://linear.app) — a keyboard-first issue tracking and project management tool for software teams.
+Built with the Ralph-to-Ralph autonomous cloning system.
 
 ## Tech Stack
-- **Framework**: Determined during onboarding — installed by Claude based on target product (default: Next.js 16 App Router)
+- **Framework**: Next.js 16 App Router
 - **Language**: TypeScript strict mode, no `any` types
-- **Styling**: Installed during onboarding (default: Tailwind CSS)
-- **UI Components**: Installed during onboarding (default: Radix UI)
-- **Database**: Installed during onboarding (default: Drizzle ORM + Postgres)
+- **Styling**: Tailwind CSS
+- **UI Components**: Radix UI
+- **Database**: Drizzle ORM + Postgres (AWS RDS)
+- **Cache/Realtime**: Redis (AWS ElastiCache) — real-time sync, pub/sub
+- **Storage**: AWS S3 — file attachments, avatars
+- **Email**: AWS SES — magic links, notifications
+- **Auth**: Better Auth (Google OAuth, magic links)
+- **Deployment**: AWS ECS Fargate + ALB
 - **Unit Tests**: Vitest (pre-installed)
 - **E2E Tests**: Playwright (pre-installed)
 - **Linting**: Biome (pre-installed)
@@ -37,7 +42,7 @@ Phase 1: Inspect (Claude + Ever CLI) → Phase 2: Build (Claude) → Phase 3: QA
 - `src/types/` — TypeScript types
 - `tests/` — unit tests (Vitest)
 - `tests/e2e/` — E2E tests (Playwright)
-- `packages/sdk/` — TypeScript SDK package (if target product has an SDK)
+- `packages/sdk/` — TypeScript SDK package
 - `scripts/` — infrastructure and deployment scripts
 
 ## Pre-configured (DO NOT reinstall or recreate)
@@ -48,10 +53,11 @@ Phase 1: Inspect (Claude + Ever CLI) → Phase 2: Build (Claude) → Phase 3: QA
 ## Environment
 - **AWS CLI** — configure via `aws configure`. `aws` commands and `@aws-sdk/*` packages work out of the box.
 - **`.env`** — copy from `.env.example` and fill in your values
+- **Infrastructure** — run `bash scripts/preflight.sh` to provision RDS, ElastiCache, S3, ECR, ECS, ALB, SES
 
 ## Authentication
-- Use **Better Auth** for all authentication — `npm install better-auth`
-- Match the target product's auth methods: email/password, OAuth providers (Google, GitHub, etc.), magic links
+- Use **Better Auth** for all authentication — already installed
+- Auth methods: Google OAuth, email magic links (via SES), workspace invitations
 - Protect routes via Next.js middleware (`src/middleware.ts`)
 - Store sessions in Postgres via Better Auth's built-in Drizzle adapter
 - Auth is **P1 priority** — build it before core features

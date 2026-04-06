@@ -25,9 +25,11 @@ Everything listed here is already installed and configured. Do NOT reinstall, re
 ## AWS Infrastructure (provision with scripts/preflight.sh)
 Run `bash scripts/preflight.sh` before starting the loop. It creates:
 - **RDS Postgres** — database instance, connection string added to `.env`
-- **S3** — storage bucket with CORS
+- **ElastiCache Redis** — real-time sync, caching, pub/sub for live updates
+- **S3** — file attachments, avatars, storage bucket with CORS
 - **ECR** — Docker image repository
-- **SES** — email identity verification
+- **ECS Fargate + ALB** — container hosting with load balancer
+- **SES** — email identity verification (magic links, notifications)
 
 ## Cloudflare DNS (optional)
 If you want auto-configure for domain verification, add to `.env`:
