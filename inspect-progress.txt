@@ -79,11 +79,29 @@
 - ralph/screenshots/inspect/issue-detail.jpg
 - ralph/screenshots/inspect/create-issue-modal.jpg
 
+## Iteration 4 — Projects Deep Dive (2026-04-07)
+
+### What was done:
+- Projects list page (/projects/all): Table view with columns — Name (emoji icon), Health, Priority, Lead (avatar), Target date, Status (% progress ring)
+- 14 projects visible in workspace, some at 100%, some at 0%
+- Project detail page (Overview tab): Emoji icon, title, description, properties sidebar with Status (Planned/Started/Completed/Paused/Canceled), Priority (High), Lead, Members, Dates (Start → Target), Teams, Slack channel, Labels
+- Resources section: "Add document or link..."
+- "Write first project update" CTA
+- Milestones section: List of milestones with progress bars (% of N issues), e.g., "Tier 1: Quick Wins 100% of 2", "Tier 2: Token Reduction 50% of 2"
+- Progress section: Scope count, Completed count, breakdown by Assignees and Labels
+- Activity tab: Shows milestone completion events, project creation events
+- Issues tab: Filtered issue list grouped by status (Backlog, Done), shows issue identifier, title, status checkmark, date
+- Project detail has 3 tabs: Overview, Activity, Issues
+- Added 11 new PRD entries: layout (P2), design system (P2), issues CRUD (P3), projects (P5), display options (P4), filters (P4)
+
+### Screenshots captured:
+- ralph/screenshots/inspect/projects-all.jpg
+- ralph/screenshots/inspect/project-detail.jpg
+- ralph/screenshots/inspect/project-issues-tab.jpg
+
 ### What remains:
-- Iteration 4: Projects page deep dive
 - Iteration 5: Inbox + Notifications
 - Iteration 6: Cycles page deep dive
 - Iteration 7: Initiatives page
-- Iteration 8: Settings pages
-- Iteration 9+: Custom views, search, command palette
+- Iteration 8+: Custom views, search, command palette, settings
 - Final: Complete build-spec.md and reorder prd.json

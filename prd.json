@@ -119,5 +119,126 @@
     "dependent_on": ["onboarding-001"],
     "build_pass": false,
     "qa_pass": false
+  },
+  {
+    "id": "layout-001",
+    "category": "layout",
+    "description": "App shell layout — sidebar (244px) + content area with 12px border-radius. Dark/light theme support. Workspace switcher in top-left. Search button. Create issue button (+). Help menu bottom-left",
+    "page": "All pages",
+    "priority": "P2",
+    "core": true,
+    "dependent_on": ["auth-003", "onboarding-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "layout-002",
+    "category": "layout",
+    "description": "Sidebar navigation — Personal section (Inbox, My Issues), Workspace section (Projects, Views, More), Teams section (per-team: Triage, Issues, Projects, Views), Initiatives, Cycles. Collapsible team sections",
+    "page": "Sidebar",
+    "priority": "P2",
+    "core": true,
+    "dependent_on": ["layout-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "design-001",
+    "category": "ui",
+    "description": "Design system foundations — Inter font, color tokens (dark: #090909/#0f0f11, light: #f5f5f5/#fcfcfd), accent #7180ff, priority icons (Urgent/High/Medium/Low/None), status circle icons, avatar component, label chips",
+    "page": "N/A",
+    "priority": "P2",
+    "core": true,
+    "dependent_on": [],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-001",
+    "category": "crud",
+    "description": "Issues list view — table/list grouped by workflow state (Backlog, In Progress, Done, Canceled). Each row: identifier (ENG-123), title, assignee avatar, priority icon, labels, project, date. 'Add new issue' button per group",
+    "page": "/team/{key}/all",
+    "priority": "P3",
+    "core": true,
+    "dependent_on": ["layout-001", "design-001", "infra-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-002",
+    "category": "crud",
+    "description": "Issues board view — Kanban columns by status. Each column: header with count, issue cards with title, identifier, priority icon, labels, assignee avatar. Drag & drop between columns",
+    "page": "/team/{key}/board",
+    "priority": "P3",
+    "core": true,
+    "dependent_on": ["feature-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-003",
+    "category": "crud",
+    "description": "Issue detail page — full-width view with editable title (contenteditable), rich text description, properties sidebar (Status, Priority, Assignee, Labels, Project), sub-issues section, activity feed, comment composer with reactions and attachments",
+    "page": "/team/{key}/issue/{id}",
+    "priority": "P3",
+    "core": true,
+    "dependent_on": ["feature-001", "infra-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-004",
+    "category": "crud",
+    "description": "Create issue modal — team selector, title field (contenteditable), description field (rich text), bottom toolbar with Status/Priority/Assignee/Project/Labels combobox dropdowns, 'More actions' overflow, file attachment, 'Create more' toggle, 'Create issue' submit",
+    "page": "Modal (any page)",
+    "priority": "P3",
+    "core": true,
+    "dependent_on": ["feature-001", "design-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-005",
+    "category": "crud",
+    "description": "Display options panel — List/Board layout toggle, Columns grouping (Status), Rows sub-grouping, Ordering (Priority), toggleable display properties (ID, Status, Assignee, Priority, Project, Due date, Milestone, Labels, Links, Time in status, Created, Updated, PRs). Save as team default",
+    "page": "/team/{key}/*",
+    "priority": "P4",
+    "core": false,
+    "dependent_on": ["feature-001", "feature-002"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-006",
+    "category": "crud",
+    "description": "Filter bar — 'Add filter' button on issue lists. Filter by Status, Priority, Assignee, Label, Project, Cycle, Due date, Creator, Estimate. Composable filters with AND/OR logic",
+    "page": "/team/{key}/*",
+    "priority": "P4",
+    "core": false,
+    "dependent_on": ["feature-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-010",
+    "category": "crud",
+    "description": "Projects list page — table with columns: Name (with emoji icon), Health, Priority, Lead (avatar), Target date, Status (% progress ring). All projects view with filter/sort",
+    "page": "/projects/all",
+    "priority": "P5",
+    "core": false,
+    "dependent_on": ["layout-001", "infra-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-011",
+    "category": "crud",
+    "description": "Project detail page — Overview tab: emoji icon, title, description, properties sidebar (Status, Priority, Lead, Members, Dates, Teams, Slack, Labels), Resources section, 'Write first project update' CTA, Milestones list with progress bars (% of N issues), Progress section (scope/completed/assignees/labels breakdown). Activity tab. Issues tab (filtered issue list grouped by status)",
+    "page": "/project/{slug}/overview",
+    "priority": "P5",
+    "core": false,
+    "dependent_on": ["feature-010", "feature-001"],
+    "build_pass": false,
+    "qa_pass": false
   }
 ]
