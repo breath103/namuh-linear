@@ -99,9 +99,25 @@
 - ralph/screenshots/inspect/project-detail.jpg
 - ralph/screenshots/inspect/project-issues-tab.jpg
 
+## Iteration 5 — Inbox & My Issues (2026-04-07)
+
+### What was done:
+- Inbox (/inbox): Notification list with avatar, issue identifier, title, actor, action description, relative timestamp. Unread indicator (blue dot). Filter/sort in header. Right panel shows selected notification detail
+- Notification types observed: "assigned the issue to you", "Marked as duplicate by MCP"
+- From docs: Notifications via desktop app, mobile, Slack, email digests. Auto-subscribe on create/assign/mention. Up to 500 notifications retained
+- My Issues (/my-issues/assigned): Tabs — Assigned, Created, Subscribed, Activity. Issues grouped by status (Other active, Triage, Backlog). Each row: status icon, identifier, title, labels, project breadcrumb, assignee avatar, date
+- Display options and filter available on My Issues
+- Added PRD entries for inbox and my-issues
+
+### Screenshots captured:
+- ralph/screenshots/inspect/inbox-detail.jpg
+- ralph/screenshots/inspect/my-issues-assigned.jpg
+- ralph/screenshots/inspect/inbox-issue-from-notification.jpg
+
 ### What remains:
-- Iteration 5: Inbox + Notifications
 - Iteration 6: Cycles page deep dive
 - Iteration 7: Initiatives page
-- Iteration 8+: Custom views, search, command palette, settings
+- Iteration 8: Custom views + Triage
+- Iteration 9: Settings pages
+- Iteration 10: Search + Command palette
 - Final: Complete build-spec.md and reorder prd.json

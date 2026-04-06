@@ -240,5 +240,27 @@
     "dependent_on": ["feature-010", "feature-001"],
     "build_pass": false,
     "qa_pass": false
+  },
+  {
+    "id": "feature-020",
+    "category": "crud",
+    "description": "Inbox page — notification list showing avatar, issue identifier, title, actor name, action description (assigned, mentioned, status change, duplicate), relative timestamp. Unread indicator (blue dot). Filter and priority sort buttons. Right panel shows selected notification detail. Mark as read on click",
+    "page": "/inbox",
+    "priority": "P6",
+    "core": false,
+    "dependent_on": ["layout-001", "feature-001", "infra-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-021",
+    "category": "crud",
+    "description": "My Issues page — Tabs: Assigned, Created, Subscribed, Activity. Issues grouped by workflow status (Triage, Active, Backlog). Each row: status icon, identifier, title, labels, project breadcrumb, assignee avatar, date. Filter bar and display options. Shows count of hidden issues",
+    "page": "/my-issues/assigned",
+    "priority": "P4",
+    "core": false,
+    "dependent_on": ["layout-001", "feature-001"],
+    "build_pass": false,
+    "qa_pass": false
   }
 ]
