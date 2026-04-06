@@ -31,7 +31,8 @@
       ".omx",
       "drizzle",
       "*.d.ts",
-      "public"
+      "public",
+      "target-docs"
     ]
   }
 }
