@@ -4,6 +4,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# macOS does not ship GNU timeout — use gtimeout from coreutils or provide a fallback
+if ! command -v timeout &>/dev/null; then
+  if command -v gtimeout &>/dev/null; then
+    timeout() { gtimeout "$@"; }
+  else
+    timeout() { perl -e 'alarm shift; exec @ARGV' "$@"; }
+  fi
+fi
+
 TARGET_URL="${1:-}"
 ITERATIONS="${2:-999}"
 MAX_RETRIES=5
