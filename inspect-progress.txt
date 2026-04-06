@@ -177,5 +177,24 @@
 - ralph/screenshots/inspect/settings-notifications.jpg
 - ralph/screenshots/inspect/settings-security.jpg
 
-### What remains:
-- Final iteration: Finalize build-spec.md, add dependent_on to all PRD entries, reorder prd.json, mark INSPECT_COMPLETE
+## Final Iteration — Finalize & Complete (2026-04-07)
+
+### What was done:
+- Verified all 33 PRD entries have correct dependent_on fields
+- Verified build-spec.md is comprehensive with all sections complete:
+  - Product Overview (core features identified)
+  - Tech Stack
+  - Site Map (all pages mapped)
+  - Authentication (P1)
+  - Onboarding (P2-P3)
+  - Design System (colors, typography, layout, components)
+  - Workflow State Machine (6 categories, 16 states)
+  - Data Models (14 entities with all fields)
+  - API Architecture (REST routes)
+  - Settings Architecture (100+ lines of detail across Account, Admin, Team)
+  - Build Order (12 priority tiers from P0 to Deployment)
+- PRD summary: 4 infra, 4 auth, 3 onboarding, 2 layout, 1 design, 12 features, 12 settings = 38 total entries
+- All pages inspected across 8 iterations
+
+### INSPECTION COMPLETE
+All pages and features have been thoroughly inspected. build-spec.md and prd.json are finalized and ready for the build phase.
