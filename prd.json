@@ -262,5 +262,38 @@
     "dependent_on": ["layout-001", "feature-001"],
     "build_pass": false,
     "qa_pass": false
+  },
+  {
+    "id": "feature-030",
+    "category": "crud",
+    "description": "Cycles page — empty state with explanation text ('Cycles are a great way to manage iterative development...'). When configured: cycle list with current/upcoming/past sections, progress bar, issue count. Cycle detail shows issues grouped by status. Cycles auto-start/end on schedule. Configure cycle length and start date in team settings",
+    "page": "/team/{key}/cycles",
+    "priority": "P7",
+    "core": false,
+    "dependent_on": ["feature-001", "infra-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-031",
+    "category": "crud",
+    "description": "Initiatives page — tabs: Active, Planned, Completed. Empty state with explanation ('Initiatives are larger, strategic product efforts...'). Create new initiative shortcut (N then I). Initiative detail: title, description, linked projects with progress, status updates",
+    "page": "/initiatives",
+    "priority": "P8",
+    "core": false,
+    "dependent_on": ["feature-010", "infra-001"],
+    "build_pass": false,
+    "qa_pass": false
+  },
+  {
+    "id": "feature-032",
+    "category": "crud",
+    "description": "Triage queue — list of incoming issues in Triage status. Each row: title, identifier, creator avatar, creator name, relative timestamp. Count badge ('68 issues to triage'). 'Create triage issue' button. Filter and sort controls. Triage actions: accept (move to backlog/active) or decline (close/move)",
+    "page": "/team/{key}/triage",
+    "priority": "P5",
+    "core": false,
+    "dependent_on": ["feature-001", "infra-001"],
+    "build_pass": false,
+    "qa_pass": false
   }
 ]

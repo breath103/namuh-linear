@@ -114,10 +114,20 @@
 - ralph/screenshots/inspect/my-issues-assigned.jpg
 - ralph/screenshots/inspect/inbox-issue-from-notification.jpg
 
+## Iteration 6 — Cycles, Initiatives, Triage (2026-04-07)
+
+### What was done:
+- Cycles (/team/ENG/cycles): Empty state — no cycles configured for this team. Shows explanation text about cycles being time-boxed iterations with auto-start/end and progress tracked by estimates. "Got it" button to dismiss. Configurable cycle length and start date in team settings
+- Initiatives (/initiatives): Tabs — Active, Planned, Completed. Empty state with explanation ("larger, strategic product efforts"). "Create new initiative" shortcut (N then I). "Documentation" link
+- Triage (/team/ENG/triage): List of 68 issues in triage status. Each row: title, identifier (ENG-178), creator avatar + name, relative timestamp (13d ago). Filter and sort in header. "68 issues to triage" count with "Create triage issue" button. Favorite star button
+- Added 3 PRD entries: cycles (P7), initiatives (P8), triage (P5)
+
+### Screenshots captured:
+- ralph/screenshots/inspect/cycles-detail.jpg
+- ralph/screenshots/inspect/initiatives-detail.jpg
+- ralph/screenshots/inspect/triage-detail.jpg
+
 ### What remains:
-- Iteration 6: Cycles page deep dive
-- Iteration 7: Initiatives page
-- Iteration 8: Custom views + Triage
-- Iteration 9: Settings pages
-- Iteration 10: Search + Command palette
+- Iteration 7: Custom views + Search + Command palette
+- Iteration 8: Settings pages (team settings, workspace settings)
 - Final: Complete build-spec.md and reorder prd.json
