@@ -1,0 +1,40 @@
+# docker-compose.dev.yml — Local development overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Differences from production:
+#   - app: built from local Dockerfile instead of pulling from GHCR
+#   - app: source code mounted for hot reload
+#   - postgres: port 5432 exposed to host for direct access (e.g. psql, TablePlus)
+#   - redis: port 6379 exposed to host for direct access (e.g. redis-cli)
+
+services:
+  # ---------------------------------------------------------------------------
+  # App — build locally and mount source for hot reload
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: namuh-linear:dev
+    environment:
+      NODE_ENV: development
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      # Prevent host node_modules from overwriting container's
+      - /app/node_modules
+      - /app/.next
+
+  # ---------------------------------------------------------------------------
+  # Postgres — expose port 5432 for local tooling
+  # ---------------------------------------------------------------------------
+  postgres:
+    ports:
+      - "5432:5432"
+
+  # ---------------------------------------------------------------------------
+  # Redis — expose port 6379 for local tooling
+  # ---------------------------------------------------------------------------
+  redis:
+    ports:
+      - "6379:6379"

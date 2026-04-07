@@ -1,0 +1,96 @@
+# docker-compose.yml — Production stack for namuh-linear
+# Usage:
+#   Production:   docker compose up -d
+#   Dev services: docker compose up postgres redis -d
+#   Override:     docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+# ---------------------------------------------------------------------------
+# Shared environment variables — referenced by the app service via YAML anchor
+# ---------------------------------------------------------------------------
+x-environment: &environment
+  NODE_ENV: production
+  DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:${DB_PASSWORD:-password}@postgres:5432/namuh_linear}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3015}
+  NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3015}
+  AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
+  AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}
+  AWS_REGION: ${AWS_REGION:-us-east-1}
+  S3_BUCKET: ${S3_BUCKET}
+  SENDER_EMAIL: ${SENDER_EMAIL}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+
+services:
+  # ---------------------------------------------------------------------------
+  # Application — Next.js 16 App Router (port 3015)
+  # ---------------------------------------------------------------------------
+  app:
+    image: ghcr.io/namuh-eng/namuh-linear:latest
+    restart: unless-stopped
+    ports:
+      - "3015:3000"
+    environment:
+      <<: *environment
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - namuh
+
+  # ---------------------------------------------------------------------------
+  # Postgres 15 — primary database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: namuh_linear
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d namuh_linear"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - namuh
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 — session cache and background job queue
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - namuh
+
+# ---------------------------------------------------------------------------
+# Named volumes — persist data across container restarts
+# ---------------------------------------------------------------------------
+volumes:
+  postgres_data:
+  redis_data:
+
+# ---------------------------------------------------------------------------
+# Internal network — services communicate without exposing ports to host
+# ---------------------------------------------------------------------------
+networks:
+  namuh:
+    driver: bridge
