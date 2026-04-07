@@ -382,5 +382,31 @@
       "Resources section — add document/link",
       "Properties sidebar editing (status, priority, lead, etc.)"
     ]
+  },
+  {
+    "feature_id": "feature-020",
+    "tests_written": [
+      "NotificationRow renders actor name, issue identifier, issue title",
+      "NotificationRow renders action description for all 5 types (assigned, mentioned, status_change, comment, duplicate)",
+      "NotificationRow renders unread indicator (blue dot) when readAt is null",
+      "NotificationRow hides unread indicator when readAt is set",
+      "NotificationRow renders actor avatar initials",
+      "NotificationRow calls onClick when clicked",
+      "NotificationRow applies selected style when isSelected",
+      "NotificationRow renders relative timestamp",
+      "Inbox page shows empty state when no notifications",
+      "Inbox page renders notification list when notifications exist",
+      "Inbox page renders inbox header with unread count"
+    ],
+    "needs_deeper_qa": [
+      "E2E: navigate to /inbox and verify notification list renders with real data",
+      "Mark as read API call and optimistic UI update",
+      "Detail panel shows correct notification details on selection",
+      "Visual comparison with Linear's actual inbox layout",
+      "Filter and priority sort buttons — not yet implemented",
+      "Notification creation triggers (assign, comment, mention) — not yet wired",
+      "Real-time notification updates via WebSocket/polling",
+      "Unread count badge in sidebar"
+    ]
   }
 ]

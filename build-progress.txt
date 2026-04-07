@@ -627,3 +627,45 @@ Date: 2026-04-07
 - Issues grouped by workflow state for Issues tab, reusing IssueRow/IssuesGroupHeader components
 - Milestones show progress based on all project issues (simplified; real Linear tracks per-milestone issues)
 - Activity tab is placeholder text for now
+
+## Iteration 18 — feature-020: Inbox Page (Notifications)
+Date: 2026-04-07
+
+### What was built
+- NotificationRow component (`src/components/notification-row.tsx`) — renders actor avatar, name, action description, issue identifier + title, unread dot indicator, relative timestamp, selected state
+  - 5 notification types: assigned, mentioned, status_change, comment, duplicate
+  - Relative time formatting (now, Xm, Xh, Xd, Xmo)
+- API route `GET /api/notifications` — fetches user's notifications with actor and issue info, returns unread count
+- API route `PATCH /api/notifications/[id]/read` — marks a notification as read (validates ownership)
+- Inbox page (`src/app/(app)/inbox/page.tsx`) — full inbox view:
+  - Header with "Inbox" title and unread count
+  - Notification list (left panel, 400px on desktop)
+  - Detail panel (right side, desktop only) showing selected notification info
+  - Mark as read on click (optimistic UI update + API call)
+  - Empty state fallback ("You're all caught up")
+  - Loading state
+- Updated empty-states test to mock fetch for Inbox page
+
+### Test results
+- 17 unit tests passing (tests/inbox.test.tsx)
+  - 14 NotificationRow tests (actor name, identifier, title, 5 action types, unread dot, read state, avatar initials, onClick, selected style, relative timestamp)
+  - 3 Inbox page tests (empty state, notification list, header with unread count)
+- 318 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/components/notification-row.tsx — new NotificationRow component
+- src/app/api/notifications/route.ts — new GET API route
+- src/app/api/notifications/[id]/read/route.ts — new PATCH API route
+- src/app/(app)/inbox/page.tsx — rewritten with notification list + detail panel
+- tests/empty-states.test.tsx — updated Inbox test with fetch mock
+- prd.json — marked feature-020 build_pass: true
+- qa-hints.json — added feature-020 QA hints
+
+### Decisions
+- Used optimistic UI for mark-as-read (update state immediately, fire API in background)
+- Detail panel is desktop-only (hidden on mobile, full-width list)
+- Notifications limited to 100 most recent for performance
+- Reused Avatar component from design system for actor avatars
+- Filter/sort buttons not yet implemented (noted in QA hints)

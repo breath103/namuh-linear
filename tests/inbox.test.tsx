@@ -70,12 +70,7 @@ describe("NotificationRow", () => {
   });
 
   it("hides unread indicator when readAt is set", () => {
-    render(
-      <NotificationRow
-        {...defaultProps}
-        readAt="2026-01-01T00:00:00Z"
-      />,
-    );
+    render(<NotificationRow {...defaultProps} readAt="2026-01-01T00:00:00Z" />);
     expect(screen.queryByTestId("unread-dot")).toBeNull();
   });
 
@@ -111,9 +106,7 @@ describe("Inbox page", () => {
       json: () => Promise.resolve({ notifications: [] }),
     }) as unknown as typeof fetch;
 
-    const { default: InboxPage } = await import(
-      "@/app/(app)/inbox/page"
-    );
+    const { default: InboxPage } = await import("@/app/(app)/inbox/page");
     render(<InboxPage />);
 
     await vi.waitFor(() => {
@@ -144,9 +137,7 @@ describe("Inbox page", () => {
 
     cleanup();
     vi.resetModules();
-    const { default: InboxPage } = await import(
-      "@/app/(app)/inbox/page"
-    );
+    const { default: InboxPage } = await import("@/app/(app)/inbox/page");
     render(<InboxPage />);
 
     await vi.waitFor(() => {
@@ -177,9 +168,7 @@ describe("Inbox page", () => {
 
     cleanup();
     vi.resetModules();
-    const { default: InboxPage } = await import(
-      "@/app/(app)/inbox/page"
-    );
+    const { default: InboxPage } = await import("@/app/(app)/inbox/page");
     render(<InboxPage />);
 
     await vi.waitFor(() => {

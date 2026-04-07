@@ -129,9 +129,15 @@ describe("Empty state pages", () => {
     expect(screen.getByText("Create project")).toBeDefined();
   });
 
-  it("Inbox page shows 'You're all caught up'", () => {
+  it("Inbox page shows 'You're all caught up'", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ notifications: [] }),
+    }) as unknown as typeof fetch;
     render(<InboxPage />);
-    expect(screen.getByText("You're all caught up")).toBeDefined();
+    expect(
+      await screen.findByText("You're all caught up", {}, { timeout: 2000 }),
+    ).toBeDefined();
   });
 
   it("My Issues page shows 'No issues assigned'", () => {
