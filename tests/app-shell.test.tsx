@@ -218,6 +218,11 @@ describe("Sidebar", () => {
     const inboxLink = screen.getByText("Inbox").closest("a");
     expect(inboxLink?.getAttribute("href")).toBe("/inbox");
 
+    const workspaceProjectsLink = screen
+      .getAllByText("Projects")[0]
+      .closest("a");
+    expect(workspaceProjectsLink?.getAttribute("href")).toBe("/projects/all");
+
     const issuesLink = screen.getByText("Issues").closest("a");
     expect(issuesLink?.getAttribute("href")).toBe("/team/ENG/all");
   });

@@ -1,4 +1,12 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Mock next/navigation
@@ -9,6 +17,7 @@ vi.mock("next/navigation", () => ({
 
 import { ProjectRow } from "@/components/project-row";
 import { ProjectStatusBadge } from "@/components/project-status-badge";
+import { ProjectsPage } from "@/components/projects-page";
 
 afterEach(cleanup);
 
@@ -68,6 +77,10 @@ describe("ProjectRow", () => {
     render(<ProjectRow {...defaultProps} />);
     const row = screen.getByTestId("project-row");
     expect(row).toBeDefined();
+    expect(row).toHaveAttribute(
+      "href",
+      "/project/agent-speed-optimization/overview",
+    );
   });
 
   it("renders 0% progress", () => {
@@ -105,5 +118,104 @@ describe("ProjectStatusBadge", () => {
   it("renders canceled status", () => {
     render(<ProjectStatusBadge status="canceled" />);
     expect(screen.getByText("Canceled")).toBeDefined();
+  });
+});
+
+describe("ProjectsPage", () => {
+  it("filters projects by status", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        projects: [
+          {
+            id: "project-1",
+            name: "Alpha",
+            icon: "A",
+            slug: "alpha",
+            status: "planned",
+            priority: "none",
+            health: "No updates",
+            lead: null,
+            targetDate: null,
+            progress: 0,
+            createdAt: "2026-04-05T00:00:00.000Z",
+          },
+          {
+            id: "project-2",
+            name: "Beta",
+            icon: "B",
+            slug: "beta",
+            status: "completed",
+            priority: "high",
+            health: "No updates",
+            lead: null,
+            targetDate: null,
+            progress: 100,
+            createdAt: "2026-04-06T00:00:00.000Z",
+          },
+        ],
+      }),
+    } as Response);
+
+    render(<ProjectsPage />);
+
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Filter projects by status"), {
+      target: { value: "completed" },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Alpha")).not.toBeInTheDocument();
+      expect(screen.getByText("Beta")).toBeInTheDocument();
+    });
+  });
+
+  it("sorts projects by progress", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        projects: [
+          {
+            id: "project-1",
+            name: "Alpha",
+            icon: "A",
+            slug: "alpha",
+            status: "planned",
+            priority: "none",
+            health: "No updates",
+            lead: null,
+            targetDate: null,
+            progress: 10,
+            createdAt: "2026-04-05T00:00:00.000Z",
+          },
+          {
+            id: "project-2",
+            name: "Beta",
+            icon: "B",
+            slug: "beta",
+            status: "started",
+            priority: "high",
+            health: "No updates",
+            lead: null,
+            targetDate: null,
+            progress: 90,
+            createdAt: "2026-04-06T00:00:00.000Z",
+          },
+        ],
+      }),
+    } as Response);
+
+    render(<ProjectsPage />);
+
+    await screen.findByText("Alpha");
+    fireEvent.change(screen.getByLabelText("Sort projects"), {
+      target: { value: "progress-desc" },
+    });
+
+    await waitFor(() => {
+      const rows = screen.getAllByTestId("project-row");
+      expect(within(rows[0]).getByText("Beta")).toBeInTheDocument();
+      expect(within(rows[1]).getByText("Alpha")).toBeInTheDocument();
+    });
   });
 });

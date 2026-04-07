@@ -20,7 +20,11 @@ interface SidebarProps {
 }
 
 function isWorkspaceProjectsRoute(pathname: string) {
-  return pathname === "/projects" || pathname.startsWith("/project/");
+  return (
+    pathname === "/projects" ||
+    pathname.startsWith("/projects/") ||
+    pathname.startsWith("/project/")
+  );
 }
 
 function isWorkspaceViewsRoute(pathname: string) {
@@ -348,7 +352,7 @@ export function Sidebar({
 
         <SectionHeader label="Workspace" />
         <SidebarLink
-          href="/projects"
+          href="/projects/all"
           label="Projects"
           active={isWorkspaceProjectsRoute(pathname)}
           icon={

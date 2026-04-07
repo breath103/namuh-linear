@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { issue, member, project, user } from "@/lib/db/schema";
-import { count, eq, sql } from "drizzle-orm";
+import { count, desc, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -26,6 +26,7 @@ export async function GET() {
     .select({ workspaceId: member.workspaceId })
     .from(member)
     .where(eq(member.userId, session.user.id))
+    .orderBy(desc(member.createdAt))
     .limit(1);
 
   if (members.length === 0) {
@@ -118,6 +119,7 @@ export async function POST(request: Request) {
     .select({ workspaceId: member.workspaceId })
     .from(member)
     .where(eq(member.userId, session.user.id))
+    .orderBy(desc(member.createdAt))
     .limit(1);
 
   if (members.length === 0) {

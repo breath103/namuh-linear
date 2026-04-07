@@ -2,6 +2,7 @@
 
 import { Avatar } from "@/components/avatar";
 import { PriorityIcon } from "@/components/icons/priority-icon";
+import Link from "next/link";
 
 type ProjectStatus =
   | "planned"
@@ -105,7 +106,7 @@ export function ProjectRow({
   progress,
 }: ProjectRowProps) {
   return (
-    <a
+    <Link
       href={`/project/${slug}/overview`}
       data-testid="project-row"
       className="group flex h-[44px] items-center border-b border-[var(--color-border)] px-4 text-[13px] transition-colors hover:bg-[var(--color-surface-hover)]"
@@ -152,6 +153,6 @@ export function ProjectRow({
           {progress}%
         </span>
       </div>
-    </a>
+    </Link>
   );
 }

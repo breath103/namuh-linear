@@ -61,7 +61,7 @@ export function CommandPalette({ teamKey }: CommandPaletteProps) {
       group: "Projects",
       action: () => {
         close();
-        router.push("/projects");
+        router.push("/projects/all");
       },
     },
     {
@@ -97,7 +97,7 @@ export function CommandPalette({ teamKey }: CommandPaletteProps) {
       group: "Navigation",
       action: () => {
         close();
-        router.push("/projects");
+        router.push("/projects/all");
       },
     },
     {

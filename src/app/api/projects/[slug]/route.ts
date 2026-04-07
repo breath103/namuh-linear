@@ -32,6 +32,7 @@ export async function GET(
     .select({ workspaceId: member.workspaceId })
     .from(member)
     .where(eq(member.userId, session.user.id))
+    .orderBy(desc(member.createdAt))
     .limit(1);
 
   if (members.length === 0) {

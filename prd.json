@@ -228,7 +228,7 @@
     "core": false,
     "dependent_on": ["layout-001", "infra-001"],
     "build_pass": true,
-    "qa_pass": false
+    "qa_pass": true
   },
   {
     "id": "feature-011",
