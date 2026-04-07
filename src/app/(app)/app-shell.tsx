@@ -3,6 +3,10 @@
 import { CommandPalette } from "@/components/command-palette";
 import { CreateIssueModal } from "@/components/create-issue-modal";
 import { Sidebar, type SidebarTeam } from "@/components/sidebar";
+import {
+  OPEN_CREATE_ISSUE_EVENT,
+  OPEN_CREATE_ISSUE_FULLSCREEN_EVENT,
+} from "@/lib/command-palette";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -217,11 +221,22 @@ export function AppShell({
       setShowCreateIssue(true);
     }
 
-    window.addEventListener("open-create-issue", handleOpenCreateIssue);
+    window.addEventListener(OPEN_CREATE_ISSUE_EVENT, handleOpenCreateIssue);
+    window.addEventListener(
+      OPEN_CREATE_ISSUE_FULLSCREEN_EVENT,
+      handleOpenCreateIssue,
+    );
     document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("open-create-issue", handleOpenCreateIssue);
+      window.removeEventListener(
+        OPEN_CREATE_ISSUE_EVENT,
+        handleOpenCreateIssue,
+      );
+      window.removeEventListener(
+        OPEN_CREATE_ISSUE_FULLSCREEN_EVENT,
+        handleOpenCreateIssue,
+      );
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
@@ -249,7 +264,10 @@ export function AppShell({
         teamKey={shellContext.teamKey}
         teamName={shellContext.teamName}
       />
-      <CommandPalette teamKey={shellContext.teamKey} />
+      <CommandPalette
+        teamKey={shellContext.teamKey}
+        workspaceId={shellContext.workspaceId}
+      />
     </div>
   );
 }

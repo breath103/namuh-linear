@@ -1054,5 +1054,45 @@
       }
     ],
     "fix_description": "Updated the triage API to include all triage-category workflow states and scoped label loading to the returned issues, switched row timestamps to relative formatting, added regression coverage for multi-state triage and populated-queue controls, and rebuilt the triage page to expose create/filter/sort controls while keeping accept/decline refresh behavior wired to the real API."
+  },
+  {
+    "feature_id": "feature-040",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; the full Vitest suite passed after the command palette fixes (`645` unit tests passed).",
+      "Ran smoke Playwright and then the required full shared-code regression suite with `make test-e2e`; the final full E2E run passed (`6 passed`).",
+      "Ran `make check`; typecheck plus Biome passed after the palette, shell, and search-route updates.",
+      "Verified the sidebar search button opens the palette in Ever on `http://localhost:3015/inbox`, and confirmed focus lands in the `Type a command or search...` input.",
+      "Verified the expanded PRD command surface in Ever: Views, Issues, Projects, Documents, Filter, Templates, and Navigation groups all render together with the footer hints `Open`, `Advanced search`, `More actions`, and `Quick look`.",
+      "Verified the real issue search path in Ever on `/team/ONB/all`: typing `ONB` now shows `Quick results for \"ONB\"` with live issues including `ONB-4 QA feature 004 browser verification` instead of the previous empty state.",
+      "Verified focus restoration in Ever: closing the palette with `Escape` after opening from the sidebar returns focus to the sidebar `Search` button.",
+      "Verified the custom create-issue command wiring in Ever: searching `new issue` and pressing `Enter` opens the real `Create issue for Onboarding QA Team` modal.",
+      "Saved QA evidence screenshots to `ralph/screenshots/qa/feature-040-attempt-1-final-inbox.jpg`, `ralph/screenshots/qa/feature-040-attempt-1-search-results.jpg`, and `ralph/screenshots/qa/feature-040-attempt-1-quick-results.jpg`."
+    ],
+    "bugs_found": [
+      {
+        "severity": "critical",
+        "description": "Live command-palette issue search was broken because the API route used an invalid `ANY(...)` filter and returned `500` for real queries.",
+        "expected": "Typing a query such as `ONB` in the palette should return matching issues from the current workspace and show them under `Quick results for {query}`.",
+        "actual": "Before the fix, `GET /api/issues/search?q=ONB` failed with Postgres error `42809: op ANY/ALL (array) requires array on right side`, so the palette fell back to an empty state instead of showing `ONB-*` issues.",
+        "reproduction": "1. Open `/team/ONB/all`.\n2. Open the command palette and type `ONB`.\n3. Observe the empty state in the palette.\n4. Check the dev server log and see the `ANY/ALL` Postgres error from `/api/issues/search`."
+      },
+      {
+        "severity": "major",
+        "description": "The palette did not meet the feature spec: multiple required command groups and footer hints were missing, the sidebar trigger relied on a toggle shortcut instead of an explicit open event, and focus was not restored on close.",
+        "expected": "The palette should expose the grouped commands and footer hints described in the PRD, open reliably from the sidebar search trigger, and restore focus to the trigger after closing.",
+        "actual": "Before the fix, the palette showed a much smaller command list, lacked the `Advanced search`/`More actions`/`Quick look` footer hints, and closing it from the sidebar left focus on `BODY`.",
+        "reproduction": "1. Open the palette from the sidebar search button.\n2. Compare the rendered groups and footer against the PRD.\n3. Press `Escape`.\n4. Observe that required groups/hints are missing and focus does not return to the search trigger."
+      },
+      {
+        "severity": "major",
+        "description": "On users with multiple workspace memberships, palette search could scope to the wrong workspace and show false empty results.",
+        "expected": "Palette search should use the active app-shell workspace, not an arbitrary first membership row, when resolving searchable issues.",
+        "actual": "Before the fix, the search route just selected the first membership for the signed-in user, so multi-workspace accounts could query the wrong workspace and see no results for issues visible in the current shell.",
+        "reproduction": "1. Sign in as a user who belongs to multiple workspaces.\n2. Open the palette from one workspace shell.\n3. Search for an issue identifier that exists in that active workspace.\n4. Observe that the route can return no results because it scopes against another membership's workspace."
+      }
+    ],
+    "fix_description": "Fixed the real search route (`inArray` plus explicit active-workspace scoping), expanded the palette to cover the required grouped commands/footer hints, hardened async search against stale responses, restored focus on close, wired the sidebar to an explicit open event, persisted the last issue for navigation, and verified the real create-issue command path plus live search results in Ever."
   }
 ]

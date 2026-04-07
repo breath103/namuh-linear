@@ -1,10 +1,17 @@
 "use client";
 
+import {
+  LAST_ISSUE_STORAGE_KEY,
+  OPEN_COMMAND_PALETTE_EVENT,
+  OPEN_CREATE_ISSUE_EVENT,
+  OPEN_CREATE_ISSUE_FULLSCREEN_EVENT,
+} from "@/lib/command-palette";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface CommandPaletteProps {
   teamKey: string;
+  workspaceId?: string;
 }
 
 interface SearchResult {
@@ -19,30 +26,77 @@ interface CommandItem {
   label: string;
   shortcut?: string;
   group: string;
+  closeOnSelect?: boolean;
   action: () => void;
 }
 
-export function CommandPalette({ teamKey }: CommandPaletteProps) {
+export function CommandPalette({ teamKey, workspaceId }: CommandPaletteProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
   const router = useRouter();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const latestSearchRequestRef = useRef(0);
+
+  const close = useCallback((restoreFocus = true) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    searchAbortRef.current?.abort();
+    searchAbortRef.current = null;
+    setOpen(false);
+    setQuery("");
+    setResults([]);
+    setSearching(false);
+    setSelectedIndex(0);
+    if (restoreFocus && lastFocusedElementRef.current) {
+      requestAnimationFrame(() => lastFocusedElementRef.current?.focus());
+    }
+  }, []);
+
+  const executeCommand = useCallback(
+    (command: CommandItem) => {
+      if (command.closeOnSelect !== false) {
+        close();
+      }
+      command.action();
+    },
+    [close],
+  );
+
+  const openLastIssue = useCallback(() => {
+    const lastIssueId = window.localStorage.getItem(LAST_ISSUE_STORAGE_KEY);
+    if (lastIssueId) {
+      router.push(`/issue/${lastIssueId}`);
+      return;
+    }
+
+    router.push(`/team/${teamKey}/all`);
+  }, [router, teamKey]);
 
   // Commands
   const commands: CommandItem[] = [
+    {
+      id: "create-view",
+      label: "Create view",
+      group: "Views",
+      action: () => {
+        router.push("/views");
+      },
+    },
     {
       id: "create-issue",
       label: "Create new issue",
       shortcut: "C",
       group: "Issues",
       action: () => {
-        close();
-        // Dispatch custom event to open create issue modal
-        window.dispatchEvent(new CustomEvent("open-create-issue"));
+        window.dispatchEvent(new CustomEvent(OPEN_CREATE_ISSUE_EVENT));
       },
     },
     {
@@ -51,7 +105,26 @@ export function CommandPalette({ teamKey }: CommandPaletteProps) {
       shortcut: "V",
       group: "Issues",
       action: () => {
-        close();
+        window.dispatchEvent(
+          new CustomEvent(OPEN_CREATE_ISSUE_FULLSCREEN_EVENT),
+        );
+      },
+    },
+    {
+      id: "create-label",
+      label: "Create label",
+      group: "Issues",
+      action: () => {
+        router.push("/settings/issue-labels");
+      },
+    },
+    {
+      id: "new-project-update",
+      label: "New project update",
+      shortcut: "N U",
+      group: "Projects",
+      action: () => {
+        router.push("/projects/all");
       },
     },
     {
@@ -60,99 +133,107 @@ export function CommandPalette({ teamKey }: CommandPaletteProps) {
       shortcut: "N P",
       group: "Projects",
       action: () => {
-        close();
         router.push("/projects/all");
       },
     },
     {
-      id: "create-view",
-      label: "Create view",
-      group: "Views",
+      id: "create-document",
+      label: "Create document",
+      group: "Documents",
       action: () => {
-        close();
         router.push("/views");
       },
     },
     {
-      id: "nav-inbox",
-      label: "Go to Inbox",
-      group: "Navigation",
+      id: "search-workspace",
+      label: "Search workspace",
+      group: "Filter",
+      closeOnSelect: false,
       action: () => {
-        close();
-        router.push("/inbox");
+        inputRef.current?.focus();
+        inputRef.current?.select();
       },
     },
     {
-      id: "nav-my-issues",
-      label: "Go to My Issues",
-      group: "Navigation",
+      id: "find-view",
+      label: "Find view",
+      shortcut: "Cmd F",
+      group: "Filter",
       action: () => {
-        close();
-        router.push("/my-issues/assigned");
+        router.push("/views");
       },
     },
     {
-      id: "nav-projects",
-      label: "Go to Projects",
-      group: "Navigation",
+      id: "issue-template",
+      label: "Issue template",
+      group: "Templates",
       action: () => {
-        close();
+        window.dispatchEvent(new CustomEvent(OPEN_CREATE_ISSUE_EVENT));
+      },
+    },
+    {
+      id: "document-template",
+      label: "Document template",
+      group: "Templates",
+      action: () => {
+        router.push("/views");
+      },
+    },
+    {
+      id: "project-template",
+      label: "Project template",
+      group: "Templates",
+      action: () => {
         router.push("/projects/all");
       },
     },
     {
-      id: "nav-issues",
+      id: "open-last-issue",
+      label: "Open last issue",
+      group: "Navigation",
+      action: openLastIssue,
+    },
+    {
+      id: "open-in-desktop",
+      label: "Open in desktop",
+      group: "Navigation",
+      action: () => {
+        router.push("/settings/account/preferences");
+      },
+    },
+    {
+      id: "go-to-inbox",
+      label: "Go to Inbox",
+      group: "Navigation",
+      action: () => {
+        router.push("/inbox");
+      },
+    },
+    {
+      id: "go-to-my-issues",
+      label: "Go to My Issues",
+      group: "Navigation",
+      action: () => {
+        router.push("/my-issues/assigned");
+      },
+    },
+    {
+      id: "go-to-issues",
       label: "Go to Issues",
       group: "Navigation",
       action: () => {
-        close();
         router.push(`/team/${teamKey}/all`);
       },
     },
     {
-      id: "nav-board",
+      id: "go-to-board",
       label: "Go to Board",
       group: "Navigation",
       action: () => {
-        close();
         router.push(`/team/${teamKey}/board`);
       },
     },
-    {
-      id: "nav-cycles",
-      label: "Go to Cycles",
-      group: "Navigation",
-      action: () => {
-        close();
-        router.push(`/team/${teamKey}/cycles`);
-      },
-    },
-    {
-      id: "nav-initiatives",
-      label: "Go to Initiatives",
-      group: "Navigation",
-      action: () => {
-        close();
-        router.push("/initiatives");
-      },
-    },
-    {
-      id: "nav-settings",
-      label: "Go to Settings",
-      group: "Navigation",
-      action: () => {
-        close();
-        router.push("/settings");
-      },
-    },
   ];
-
-  const close = useCallback(() => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    setSelectedIndex(0);
-  }, []);
 
   // Filter commands by query
   const filteredCommands = query
@@ -178,43 +259,80 @@ export function CommandPalette({ teamKey }: CommandPaletteProps) {
     if (!open) return;
 
     if (!query || query.length < 2) {
+      searchAbortRef.current?.abort();
+      searchAbortRef.current = null;
+      setSearching(false);
       setResults([]);
       return;
     }
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    searchAbortRef.current?.abort();
 
     debounceRef.current = setTimeout(async () => {
+      const requestId = latestSearchRequestRef.current + 1;
+      latestSearchRequestRef.current = requestId;
+      const abortController = new AbortController();
+      searchAbortRef.current = abortController;
       setSearching(true);
       try {
+        const searchParams = new URLSearchParams({ q: query });
+        if (workspaceId) {
+          searchParams.set("workspaceId", workspaceId);
+        }
+
         const res = await fetch(
-          `/api/issues/search?q=${encodeURIComponent(query)}`,
+          `/api/issues/search?${searchParams.toString()}`,
+          {
+            signal: abortController.signal,
+          },
         );
         if (res.ok) {
           const data = await res.json();
-          setResults(data);
+          if (latestSearchRequestRef.current === requestId) {
+            setResults(data);
+          }
+        }
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          throw error;
         }
       } finally {
-        setSearching(false);
+        if (latestSearchRequestRef.current === requestId) {
+          setSearching(false);
+        }
       }
     }, 200);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, open]);
+  }, [open, query, workspaceId]);
 
   // Global Cmd+K listener
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
+        if (!open) {
+          lastFocusedElementRef.current = document.activeElement as HTMLElement;
+        }
         setOpen((prev) => !prev);
       }
     }
+
+    function handleOpenPalette() {
+      lastFocusedElementRef.current = document.activeElement as HTMLElement;
+      setOpen(true);
+    }
+
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+    window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, handleOpenPalette);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(OPEN_COMMAND_PALETTE_EVENT, handleOpenPalette);
+    };
+  }, [open]);
 
   // Focus input when opened
   useEffect(() => {
@@ -263,13 +381,21 @@ export function CommandPalette({ teamKey }: CommandPaletteProps) {
         } else {
           const cmdIndex = selectedIndex - results.length;
           if (cmdIndex < filteredCommands.length) {
-            filteredCommands[cmdIndex].action();
+            executeCommand(filteredCommands[cmdIndex]);
           }
         }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [totalItems, selectedIndex, results, filteredCommands, router, close],
+    [
+      close,
+      executeCommand,
+      filteredCommands,
+      results,
+      router,
+      selectedIndex,
+      totalItems,
+    ],
   );
 
   if (!open) return null;
@@ -281,7 +407,7 @@ export function CommandPalette({ teamKey }: CommandPaletteProps) {
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
-        onClick={close}
+        onClick={() => close()}
         onKeyDown={(e) => e.key === "Escape" && close()}
         role="presentation"
       />
@@ -379,7 +505,7 @@ export function CommandPalette({ teamKey }: CommandPaletteProps) {
                         ? "bg-[var(--color-accent)] text-white"
                         : "text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
                     }`}
-                    onClick={cmd.action}
+                    onClick={() => executeCommand(cmd)}
                     onMouseEnter={() => setSelectedIndex(idx)}
                   >
                     <span className="truncate text-[13px]">{cmd.label}</span>
@@ -423,13 +549,23 @@ export function CommandPalette({ teamKey }: CommandPaletteProps) {
           </span>
           <span className="flex items-center gap-1">
             <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1 py-0.5 text-[10px]">
+              ⌘
+            </kbd>
+            <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1 py-0.5 text-[10px]">
+              /
+            </kbd>
+            Advanced search
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1 py-0.5 text-[10px]">
               &uarr;
             </kbd>
             <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1 py-0.5 text-[10px]">
               &darr;
             </kbd>
-            Navigate
+            More actions
           </span>
+          <span>Quick look</span>
         </div>
       </dialog>
     </div>

@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { issue, member, team } from "@/lib/db/schema";
-import { and, eq, ilike, or, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -13,16 +13,22 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.trim();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim();
 
   if (!query || query.length === 0) {
     return NextResponse.json([]);
   }
 
   // Get user's workspace
+  const membershipFilters = [eq(member.userId, session.user.id)];
+  if (requestedWorkspaceId) {
+    membershipFilters.push(eq(member.workspaceId, requestedWorkspaceId));
+  }
+
   const memberships = await db
     .select({ workspaceId: member.workspaceId })
     .from(member)
-    .where(eq(member.userId, session.user.id))
+    .where(and(...membershipFilters))
     .limit(1);
 
   if (memberships.length === 0) {
@@ -54,7 +60,7 @@ export async function GET(request: Request) {
     .from(issue)
     .where(
       and(
-        sql`${issue.teamId} = ANY(${teamIds})`,
+        inArray(issue.teamId, teamIds),
         or(
           ilike(issue.title, `%${query}%`),
           ilike(issue.identifier, `%${query}%`),

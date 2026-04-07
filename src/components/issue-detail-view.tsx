@@ -1,6 +1,7 @@
 "use client";
 
 import { IssueProperties } from "@/components/issue-properties";
+import { LAST_ISSUE_STORAGE_KEY } from "@/lib/command-palette";
 import {
   normalizeIssueDescriptionHtml,
   richTextHtmlToPlainText,
@@ -231,6 +232,10 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    window.localStorage.setItem(LAST_ISSUE_STORAGE_KEY, issueId);
+  }, [issueId]);
 
   const fetchIssue = useCallback(async () => {
     setLoading(true);

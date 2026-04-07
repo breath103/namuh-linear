@@ -1,10 +1,19 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { expect, test as setup } from "@playwright/test";
 
 const authFile = "tests/e2e/.auth/user.json";
 
+function readDotEnvValue(name: string) {
+  const envContent = readFileSync(".env", "utf-8");
+  const match = envContent.match(new RegExp(`^${name}=(.+)$`, "m"));
+  return match?.[1]?.trim().replace(/^['"]|['"]$/g, "");
+}
+
 setup("authenticate playwright browser", async ({ page }) => {
-  const email = process.env.TEST_ACCOUNT_EMAIL ?? "test@example.com";
+  const email =
+    process.env.TEST_ACCOUNT_EMAIL ??
+    readDotEnvValue("TEST_ACCOUNT_EMAIL") ??
+    "test@example.com";
   expect(email).toBeTruthy();
 
   await page.goto("/login?callbackUrl=%2Finbox");

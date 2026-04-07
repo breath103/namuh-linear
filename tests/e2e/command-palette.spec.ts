@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Command Palette", () => {
   test("opens with Cmd+K and closes with Escape", async ({ page }) => {
-    await page.goto("/team/ENG/all");
+    await page.goto("/inbox");
 
     // Open command palette with Cmd+K
     await page.keyboard.press("Meta+k");
@@ -22,29 +22,35 @@ test.describe("Command Palette", () => {
   });
 
   test("shows commands and allows keyboard navigation", async ({ page }) => {
-    await page.goto("/team/ENG/all");
+    await page.goto("/inbox");
 
-    await page.keyboard.press("Meta+k");
+    await page.getByLabel("Search").click();
 
-    const dialog = page.getByRole("dialog", { name: "Command palette" });
-    await expect(dialog).toBeVisible();
+    const input = page.getByPlaceholder("Type a command or search...");
+    await expect(input).toBeVisible();
 
-    // Should show command groups
-    await expect(dialog.getByText("Issues")).toBeVisible();
-    await expect(dialog.getByText("Navigation")).toBeVisible();
-    await expect(dialog.getByText("Create new issue")).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Create new issue/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Open last issue/i }),
+    ).toBeVisible();
+    await expect(page.getByText("More actions")).toBeVisible();
 
-    // Arrow down and Enter should work
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
+    await expect(
+      page.getByRole("dialog", { name: "Command palette" }),
+    ).toBeVisible();
   });
 
   test("filters commands by search query", async ({ page }) => {
-    await page.goto("/team/ENG/all");
+    await page.goto("/inbox");
 
-    await page.keyboard.press("Meta+k");
+    await page.getByLabel("Search").click();
 
     const input = page.getByPlaceholder("Type a command or search...");
+    await expect(input).toBeVisible();
     await input.fill("inbox");
 
     // Should filter to only matching commands
@@ -56,11 +62,11 @@ test.describe("Command Palette", () => {
   });
 
   test("navigates to page when command selected", async ({ page }) => {
-    await page.goto("/team/ENG/all");
+    await page.goto("/inbox");
 
-    await page.keyboard.press("Meta+k");
-
+    await page.getByLabel("Search").click();
     const input = page.getByPlaceholder("Type a command or search...");
+    await expect(input).toBeVisible();
     await input.fill("inbox");
     await page.keyboard.press("Enter");
 

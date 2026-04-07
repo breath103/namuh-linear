@@ -1,5 +1,6 @@
 "use client";
 
+import { OPEN_COMMAND_PALETTE_EVENT } from "@/lib/command-palette";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -258,13 +259,7 @@ export function Sidebar({
             className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
             aria-label="Search"
             onClick={() =>
-              document.dispatchEvent(
-                new KeyboardEvent("keydown", {
-                  key: "k",
-                  metaKey: true,
-                  bubbles: true,
-                }),
-              )
+              window.dispatchEvent(new Event(OPEN_COMMAND_PALETTE_EVENT))
             }
           >
             <svg

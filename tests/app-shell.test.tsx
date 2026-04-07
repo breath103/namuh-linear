@@ -38,6 +38,10 @@ vi.mock("next/link", () => ({
 
 import { AppShell } from "@/app/(app)/app-shell";
 import { Sidebar } from "@/components/sidebar";
+import {
+  OPEN_COMMAND_PALETTE_EVENT,
+  OPEN_CREATE_ISSUE_FULLSCREEN_EVENT,
+} from "@/lib/command-palette";
 
 const createIssueOptionsResponse = {
   team: { id: "team-1", name: "Eng", key: "ENG" },
@@ -68,6 +72,17 @@ describe("Sidebar", () => {
   it("renders workspace initials", () => {
     render(<Sidebar workspaceInitials="MW" />);
     expect(screen.getByText("MW")).toBeDefined();
+  });
+
+  it("dispatches the command palette open event from search", () => {
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    render(<Sidebar workspaceName="My Workspace" />);
+    fireEvent.click(screen.getByLabelText("Search"));
+
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ type: OPEN_COMMAND_PALETTE_EVENT }),
+    );
   });
 
   it("renders personal navigation links", () => {
@@ -451,6 +466,45 @@ describe("AppShell", () => {
     );
 
     window.dispatchEvent(new CustomEvent("open-create-issue"));
+
+    await waitFor(() => {
+      expect(screen.getByText("New issue")).toBeInTheDocument();
+    });
+  });
+
+  it("opens the global create issue modal when the fullscreen command event fires", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/api/notifications")) {
+        return {
+          ok: true,
+          json: async () => ({ unreadCount: 2, notifications: [] }),
+        } as Response;
+      }
+      if (url.includes("/create-issue-options")) {
+        return {
+          ok: true,
+          json: async () => createIssueOptionsResponse,
+        } as Response;
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
+    render(
+      <AppShell
+        workspaceName="WS"
+        workspaceInitials="WS"
+        teamName="Eng"
+        teamId="team-1"
+        teamKey="ENG"
+        teams={[{ id: "team-1", name: "Eng", key: "ENG" }]}
+      >
+        <div>Content</div>
+      </AppShell>,
+    );
+
+    window.dispatchEvent(new CustomEvent(OPEN_CREATE_ISSUE_FULLSCREEN_EVENT));
 
     await waitFor(() => {
       expect(screen.getByText("New issue")).toBeInTheDocument();

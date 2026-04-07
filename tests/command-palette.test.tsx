@@ -1,4 +1,16 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import {
+  OPEN_COMMAND_PALETTE_EVENT,
+  OPEN_CREATE_ISSUE_FULLSCREEN_EVENT,
+} from "@/lib/command-palette";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock next/navigation
@@ -21,10 +33,12 @@ import { CommandPalette } from "@/components/command-palette";
 describe("CommandPalette", () => {
   beforeEach(() => {
     pushMock.mockReset();
+    vi.restoreAllMocks();
   });
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
   });
 
   it("does not render when closed", () => {
@@ -85,10 +99,16 @@ describe("CommandPalette", () => {
 
     fireEvent.keyDown(document, { key: "k", metaKey: true });
 
+    expect(screen.getByText("Views")).toBeDefined();
     expect(screen.getByText("Issues")).toBeDefined();
+    expect(screen.getByText("Projects")).toBeDefined();
+    expect(screen.getByText("Documents")).toBeDefined();
+    expect(screen.getByText("Filter")).toBeDefined();
+    expect(screen.getByText("Templates")).toBeDefined();
     expect(screen.getByText("Navigation")).toBeDefined();
     expect(screen.getByText("Create new issue")).toBeDefined();
-    expect(screen.getByText("Go to Inbox")).toBeDefined();
+    expect(screen.getByText("Create label")).toBeDefined();
+    expect(screen.getByText("Open last issue")).toBeDefined();
   });
 
   it("filters commands by query", () => {
@@ -124,6 +144,7 @@ describe("CommandPalette", () => {
 
     // "C" shortcut for Create new issue
     expect(screen.getByText("C")).toBeDefined();
+    expect(screen.getByText("Cmd")).toBeDefined();
   });
 
   it("uses teamKey for team-scoped navigation", () => {
@@ -177,5 +198,157 @@ describe("CommandPalette", () => {
 
     // Component should still be open and functional
     expect(screen.getByRole("dialog")).toBeDefined();
+  });
+
+  it("opens from the sidebar event and restores focus when closed", async () => {
+    render(
+      <>
+        <button
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(new Event(OPEN_COMMAND_PALETTE_EVENT))
+          }
+        >
+          Search trigger
+        </button>
+        <CommandPalette teamKey="ENG" />
+      </>,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Search trigger" });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const input = screen.getByPlaceholderText("Type a command or search...");
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+    });
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger);
+    });
+  });
+
+  it("shows issue search results and opens the selected issue", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          id: "issue-1",
+          identifier: "ONB-4",
+          title: "QA feature 004 browser verification",
+          priority: "high",
+        },
+      ],
+    } as Response);
+
+    render(<CommandPalette teamKey="ENG" />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    const input = screen.getByPlaceholderText("Type a command or search...");
+    fireEvent.change(input, { target: { value: "ONB" } });
+
+    await waitFor(
+      () => {
+        expect(screen.getByText("ONB-4")).toBeInTheDocument();
+      },
+      { timeout: 1000 },
+    );
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(pushMock).toHaveBeenCalledWith("/issue/issue-1");
+  });
+
+  it("ignores stale issue search responses when typing quickly", async () => {
+    vi.useFakeTimers();
+
+    type SearchResponse = Array<{
+      id: string;
+      identifier: string;
+      title: string;
+      priority: string;
+    }>;
+
+    let resolveFirst:
+      | ((value: { ok: boolean; json: () => Promise<SearchResponse> }) => void)
+      | undefined;
+    let resolveSecond:
+      | ((value: { ok: boolean; json: () => Promise<SearchResponse> }) => void)
+      | undefined;
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = new URL(String(input), "http://localhost");
+      return new Promise((resolve) => {
+        if (url.searchParams.get("q") === "ON") {
+          resolveFirst = resolve as typeof resolveFirst;
+          return;
+        }
+
+        resolveSecond = resolve as typeof resolveSecond;
+      }) as Promise<Response>;
+    });
+
+    render(<CommandPalette teamKey="ENG" />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    const input = screen.getByPlaceholderText("Type a command or search...");
+
+    fireEvent.change(input, { target: { value: "ON" } });
+    await vi.advanceTimersByTimeAsync(200);
+
+    fireEvent.change(input, { target: { value: "ONB" } });
+    await vi.advanceTimersByTimeAsync(200);
+
+    await act(async () => {
+      resolveSecond?.({
+        ok: true,
+        json: async () => [
+          {
+            id: "issue-new",
+            identifier: "ONB-4",
+            title: "Newest result",
+            priority: "high",
+          },
+        ],
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("Newest result")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveFirst?.({
+        ok: true,
+        json: async () => [
+          {
+            id: "issue-old",
+            identifier: "ON-1",
+            title: "Stale result",
+            priority: "low",
+          },
+        ],
+      });
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText("Stale result")).toBeNull();
+    expect(screen.getByText("Newest result")).toBeDefined();
+  });
+
+  it("dispatches the fullscreen create issue event", () => {
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    render(<CommandPalette teamKey="ENG" />);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+
+    const input = screen.getByPlaceholderText("Type a command or search...");
+    fireEvent.change(input, { target: { value: "fullscreen" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ type: OPEN_CREATE_ISSUE_FULLSCREEN_EVENT }),
+    );
   });
 });
