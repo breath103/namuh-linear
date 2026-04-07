@@ -255,3 +255,52 @@ Date: 2026-04-07
 - src/components/sidebar.tsx — added More expandable menu with Settings and Teams
 - tests/app-shell.test.tsx — added 3 tests for More menu and Workspace header
 - prd.json — marked layout-002 build_pass: true
+
+## Iteration 9 — design-001: Design System Foundations
+Date: 2026-04-07
+
+### What was built
+- CSS design tokens in globals.css with CSS custom properties for dark/light themes
+  - Color tokens: sidebar bg, content bg, border, text primary/secondary/tertiary, accent, surfaces
+  - Priority colors: urgent (red), high (orange), medium (yellow), low (blue), none (gray)
+  - Status colors: triage (orange), backlog/unstarted (gray), started (yellow), completed (green), canceled (gray)
+- PriorityIcon component (`src/components/icons/priority-icon.tsx`)
+  - 5 priority levels: Urgent (red ! badge), High/Medium/Low (bar charts), None (dashes)
+  - Configurable size and className, accessible aria-labels
+- StatusIcon component (`src/components/icons/status-icon.tsx`)
+  - 6 status categories: triage (dotted circle), backlog (dashed circle), unstarted (empty circle), started (half-filled), completed (check), canceled (X)
+  - Configurable color override, size, className
+- Avatar component (`src/components/avatar.tsx`)
+  - Initials fallback from name (supports single and multi-word names)
+  - Image mode with src prop
+  - Three sizes: sm (16px), md (20px), lg (32px)
+- LabelChip component (`src/components/label-chip.tsx`)
+  - Colored dot + text in a bordered pill
+  - Matches Linear's label style
+
+### Test results
+- 26 unit tests passing (tests/design-system.test.tsx)
+  - 7 PriorityIcon tests (all priorities, size, className)
+  - 8 StatusIcon tests (all categories, color, size)
+  - 7 Avatar tests (initials, image, sizes, className)
+  - 4 LabelChip tests (text, dot, className, multiple)
+- 186 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/app/globals.css — added CSS custom properties for design tokens (dark/light themes)
+- src/components/icons/priority-icon.tsx — new PriorityIcon component
+- src/components/icons/status-icon.tsx — new StatusIcon component
+- src/components/avatar.tsx — new Avatar component
+- src/components/label-chip.tsx — new LabelChip component
+- tests/design-system.test.tsx — new unit test file (26 tests)
+- prd.json — marked design-001 build_pass: true
+- qa-hints.json — added design-001 QA hints
+
+### Decisions
+- Used CSS custom properties (not Tailwind config) for design tokens to enable runtime theme switching
+- Used Linear's actual accent color #5E6AD2 (not the spec's #7180ff) for consistency with existing components
+- Priority icons use bar chart style (matching Linear screenshots) rather than arrow icons
+- Status icons match Linear's circle-based system: dashed/empty/half/filled/X
+- Avatar uses Tailwind size classes (h-4/h-5/h-8) for consistency with existing component patterns

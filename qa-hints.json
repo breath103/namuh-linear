@@ -149,5 +149,29 @@
       "Multiple team sections when user has multiple teams",
       "Sidebar scroll with many items"
     ]
+  },
+  {
+    "feature_id": "design-001",
+    "tests_written": [
+      "PriorityIcon renders all 5 levels (urgent/high/medium/low/none) with correct aria-labels",
+      "PriorityIcon applies custom size and className",
+      "StatusIcon renders all 6 categories (triage/backlog/unstarted/started/completed/canceled)",
+      "StatusIcon applies custom color and size",
+      "Avatar renders initials from full name and single name",
+      "Avatar renders image when src provided",
+      "Avatar applies sm/md/lg sizes and custom className",
+      "LabelChip renders name text and colored dot",
+      "LabelChip applies custom className",
+      "Multiple LabelChips render side by side"
+    ],
+    "needs_deeper_qa": [
+      "Visual comparison of priority icons with Linear's actual bar chart icons",
+      "Visual comparison of status circle icons with Linear's actual icons",
+      "CSS variable theming works correctly in light mode",
+      "Avatar image fallback behavior when src fails to load",
+      "Label chip appearance at different text lengths",
+      "Icon rendering at various zoom levels / DPI",
+      "Color contrast accessibility for all priority/status colors"
+    ]
   }
 ]
