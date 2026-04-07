@@ -1167,5 +1167,54 @@
       }
     ],
     "fix_description": "Added app-shell context so the settings layout can render workspace team links, appended the dynamic `Your teams` section with nested-route active states, hid the outer app sidebar on mobile settings routes, and stacked the settings sidebar/content layout for narrow screens while preserving desktop behavior."
+  },
+  {
+    "feature_id": "settings-002",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; the full Vitest suite passed after the preferences fixes (`652` unit tests passed).",
+      "Ran `make check`; typecheck plus Biome passed on the final code.",
+      "Ran `make db-push`; Drizzle applied the new `user.settings` schema change successfully to the local Postgres database.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the smoke suite passed (`2` Playwright tests including auth setup).",
+      "Ran the required shared-code regression suite with `make test-e2e`; the full Playwright suite passed (`6` tests passed).",
+      "Verified the pre-fix clone in Ever at `/settings/account/preferences`: the page had only client-local state, `/api/account/preferences` returned `404`, and the required `Customize` / `Configure coding tools` controls were missing. Saved evidence to `ralph/screenshots/qa/settings-002-before-fix.jpg`.",
+      "Compared the clone against the original Linear settings page in Ever and confirmed the expected behaviors for the account preferences surface: a sidebar customization control that opens a dialog, a coding tools link target, and persisted preference values.",
+      "After the fix, verified in Ever that changing Default home view, Display names, First day of week, Convert emoticons, Send comment shortcut, Font size, pointer cursors, theme, desktop-app toggle, and sidebar badge/visibility settings all save through the real authenticated `/api/account/preferences` route and survive navigation back to the page.",
+      "Verified the live UI effects from the saved preferences: theme changed to dark immediately, `fontSize` and `pointerCursors` updated `document.documentElement` datasets, the sidebar customize dialog opened with badge/visibility controls, hiding workspace Projects removed the link from the sidebar, and badge style `dot` rendered a dot unread indicator.",
+      "Verified `Default home view` now affects real navigation by saving `Inbox`, navigating to `/`, and confirming the app redirected to the inbox route instead of the generic team page.",
+      "Verified the new coding tools link navigates to the `Agent personalization` page and saved post-fix evidence to `ralph/screenshots/qa/settings-002-after-fix.jpg`."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "Account preferences were not persisted anywhere real.",
+        "expected": "Changing preferences should save through an authenticated API and persist in the database so the values survive reloads and navigation.",
+        "actual": "Before the fix, the page held almost all values in local React state, only theme touched localStorage, and `/api/account/preferences` did not exist.",
+        "reproduction": "1. Open `/settings/account/preferences`.\n2. Change any setting except theme.\n3. Reload or navigate away and back.\n4. Observe that the values revert to defaults.\n5. Request `/api/account/preferences` while signed in and observe there is no real route."
+      },
+      {
+        "severity": "major",
+        "description": "The App sidebar customize control required by the spec and original product was missing and non-functional.",
+        "expected": "The Interface section should expose a `Customize` action that opens a sidebar customization surface.",
+        "actual": "Before the fix, the page rendered no App sidebar row or customization dialog at all.",
+        "reproduction": "1. Open `/settings/account/preferences` before the fix.\n2. Inspect the Interface section.\n3. Observe that there is no `App sidebar` row and no `Customize` action."
+      },
+      {
+        "severity": "major",
+        "description": "The Coding tools link required by the feature was missing.",
+        "expected": "The Preferences page should include a coding tools link that navigates to a live destination.",
+        "actual": "Before the fix, there was no Coding tools section or navigation target from the preferences page.",
+        "reproduction": "1. Open `/settings/account/preferences` before the fix.\n2. Scroll through the page.\n3. Observe that no `Coding tools` section or `Configure coding tools` link is present."
+      },
+      {
+        "severity": "minor",
+        "description": "Default home view was an inert selector with no effect on the app.",
+        "expected": "The saved home-view preference should influence where `/` sends the signed-in user.",
+        "actual": "Before the fix, `/` always redirected to the first team issues page regardless of the selected home view.",
+        "reproduction": "1. Sign in and open `/settings/account/preferences` before the fix.\n2. Change `Default home view`.\n3. Navigate to `/`.\n4. Observe that the app still redirects to the default team issues route."
+      }
+    ],
+    "fix_description": "Added a real authenticated account-preferences API backed by `user.settings`, wired the preferences page to load/save through that API, applied theme/font/pointer settings live, made `Default home view` drive `/` redirects, added the sidebar customization dialog plus sidebar visibility/badge persistence, and added the coding tools destination page and navigation."
   }
 ]

@@ -4,6 +4,12 @@ import { CommandPalette } from "@/components/command-palette";
 import { CreateIssueModal } from "@/components/create-issue-modal";
 import { Sidebar, type SidebarTeam } from "@/components/sidebar";
 import {
+  ACCOUNT_PREFERENCES_CHANGE_EVENT,
+  type AccountPreferences,
+  DEFAULT_ACCOUNT_PREFERENCES,
+  mergeAccountPreferences,
+} from "@/lib/account-preferences";
+import {
   OPEN_CREATE_ISSUE_EVENT,
   OPEN_CREATE_ISSUE_FULLSCREEN_EVENT,
 } from "@/lib/command-palette";
@@ -79,6 +85,8 @@ export function AppShell({
   const isSettingsRoute = pathname.startsWith("/settings");
   const [showCreateIssue, setShowCreateIssue] = useState(false);
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
+  const [accountPreferences, setAccountPreferences] =
+    useState<AccountPreferences>(DEFAULT_ACCOUNT_PREFERENCES);
   const [shellContext, setShellContext] = useState<ShellContext>({
     workspaceId,
     workspaceName,
@@ -150,6 +158,59 @@ export function AppShell({
   useEffect(() => {
     document.cookie = `activeWorkspaceId=${shellContext.workspaceId}; path=/; samesite=lax`;
   }, [shellContext.workspaceId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function syncAccountPreferences() {
+      try {
+        const response = await fetch("/api/account/preferences");
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as {
+          accountPreferences?: Partial<AccountPreferences>;
+        };
+
+        if (!cancelled && data.accountPreferences) {
+          setAccountPreferences(
+            mergeAccountPreferences(
+              DEFAULT_ACCOUNT_PREFERENCES,
+              data.accountPreferences,
+            ),
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setAccountPreferences(DEFAULT_ACCOUNT_PREFERENCES);
+        }
+      }
+    }
+
+    function handleAccountPreferencesChanged(event: Event) {
+      const customEvent = event as CustomEvent<AccountPreferences>;
+      if (!customEvent.detail) {
+        return;
+      }
+
+      setAccountPreferences(customEvent.detail);
+    }
+
+    void syncAccountPreferences();
+    window.addEventListener(
+      ACCOUNT_PREFERENCES_CHANGE_EVENT,
+      handleAccountPreferencesChanged as EventListener,
+    );
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(
+        ACCOUNT_PREFERENCES_CHANGE_EVENT,
+        handleAccountPreferencesChanged as EventListener,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -263,6 +324,7 @@ export function AppShell({
             teams={shellContext.teams}
             inboxUnreadCount={inboxUnreadCount}
             onCreateIssue={() => setShowCreateIssue(true)}
+            accountPreferences={accountPreferences}
           />
         </div>
         <main

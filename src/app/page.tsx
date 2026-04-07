@@ -1,6 +1,7 @@
+import { readAccountPreferencesFromUserSettings } from "@/lib/account-preferences";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { member, team, workspace } from "@/lib/db/schema";
+import { member, team, user, workspace } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -33,6 +34,23 @@ export default async function Home() {
     .from(team)
     .where(eq(team.workspaceId, memberships[0].workspaceId))
     .limit(1);
+
+  const [currentUser] = await db
+    .select({ settings: user.settings })
+    .from(user)
+    .where(eq(user.id, session.user.id))
+    .limit(1);
+  const accountPreferences = readAccountPreferencesFromUserSettings(
+    currentUser?.settings,
+  );
+
+  if (accountPreferences.defaultHomeView === "inbox") {
+    redirect("/inbox");
+  }
+
+  if (accountPreferences.defaultHomeView === "my-issues") {
+    redirect("/my-issues/assigned");
+  }
 
   if (teams.length > 0) {
     redirect(`/team/${teams[0].key}/all`);

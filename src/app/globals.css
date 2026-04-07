@@ -33,6 +33,28 @@
     --color-status-canceled: #6b6f76;
   }
 
+  :root[data-font-size="small"] {
+    font-size: 14px;
+  }
+
+  :root[data-font-size="default"] {
+    font-size: 16px;
+  }
+
+  :root[data-font-size="large"] {
+    font-size: 18px;
+  }
+
+  :root[data-pointer-cursors="true"] button,
+  :root[data-pointer-cursors="true"] a,
+  :root[data-pointer-cursors="true"] [role="button"],
+  :root[data-pointer-cursors="true"] [role="switch"],
+  :root[data-pointer-cursors="true"] [role="combobox"],
+  :root[data-pointer-cursors="true"] input[type="checkbox"],
+  :root[data-pointer-cursors="true"] summary {
+    cursor: pointer;
+  }
+
   .dark {
     --color-sidebar-bg: #090909;
     --color-content-bg: #0f0f11;

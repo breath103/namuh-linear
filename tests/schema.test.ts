@@ -168,6 +168,11 @@ describe("Database schema", () => {
     }
   });
 
+  it("user table includes settings for account preferences", () => {
+    const columns = Object.keys(schema.user);
+    expect(columns).toContain("settings");
+  });
+
   // ── Team table columns ───────────────────────────────────────────
 
   it("team table has all required columns including settings", () => {

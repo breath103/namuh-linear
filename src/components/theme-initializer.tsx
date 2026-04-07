@@ -1,9 +1,15 @@
 "use client";
 
 import {
+  applyFontSizePreference,
+  applyPointerCursorPreference,
+  readAccountPreferencesFromUserSettings,
+} from "@/lib/account-preferences";
+import {
   APP_THEME_CHANGE_EVENT,
   applyTheme,
   getStoredTheme,
+  setThemePreference,
 } from "@/lib/theme";
 import { useEffect } from "react";
 
@@ -25,9 +31,36 @@ export function ThemeInitializer() {
     };
 
     syncTheme();
+    applyFontSizePreference("default");
+    applyPointerCursorPreference(false);
     window.addEventListener(APP_THEME_CHANGE_EVENT, syncTheme);
     window.addEventListener("storage", syncTheme);
     mediaQuery?.addEventListener("change", handleMediaChange);
+
+    void fetch("/api/account/preferences", { credentials: "include" })
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+
+        return (await response.json()) as { accountPreferences?: unknown };
+      })
+      .then((data) => {
+        if (!data?.accountPreferences) {
+          return;
+        }
+
+        const accountPreferences = readAccountPreferencesFromUserSettings({
+          accountPreferences: data.accountPreferences,
+        });
+        setThemePreference(accountPreferences.theme);
+        applyFontSizePreference(accountPreferences.fontSize);
+        applyPointerCursorPreference(accountPreferences.pointerCursors);
+      })
+      .catch(() => {
+        applyFontSizePreference("default");
+        applyPointerCursorPreference(false);
+      });
 
     return () => {
       window.removeEventListener(APP_THEME_CHANGE_EVENT, syncTheme);

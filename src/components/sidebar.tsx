@@ -1,5 +1,6 @@
 "use client";
 
+import type { AccountPreferences } from "@/lib/account-preferences";
 import { OPEN_COMMAND_PALETTE_EVENT } from "@/lib/command-palette";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,6 +20,7 @@ interface SidebarProps {
   teams?: SidebarTeam[];
   inboxUnreadCount?: number;
   onCreateIssue?: () => void;
+  accountPreferences?: AccountPreferences;
 }
 
 function isWorkspaceProjectsRoute(pathname: string) {
@@ -75,6 +77,7 @@ function SidebarLink({
   icon,
   label,
   badge,
+  badgeStyle,
   active,
   indent,
 }: {
@@ -82,9 +85,12 @@ function SidebarLink({
   icon: React.ReactNode;
   label: string;
   badge?: number;
+  badgeStyle?: "count" | "dot";
   active?: boolean;
   indent?: boolean;
 }) {
+  const showBadge = badge != null && badge > 0;
+
   return (
     <Link
       href={href}
@@ -100,11 +106,17 @@ function SidebarLink({
         {icon}
       </span>
       <span className="flex-1 truncate">{label}</span>
-      {badge != null && badge > 0 && (
-        <span className="text-[11px] text-[var(--color-text-tertiary)]">
-          {badge}
-        </span>
-      )}
+      {showBadge &&
+        (badgeStyle === "dot" ? (
+          <span
+            aria-label={`${label} unread`}
+            className="h-2 w-2 rounded-full bg-[var(--color-accent)]"
+          />
+        ) : (
+          <span className="text-[11px] text-[var(--color-text-tertiary)]">
+            {badge}
+          </span>
+        ))}
     </Link>
   );
 }
@@ -154,6 +166,7 @@ export function Sidebar({
   teams,
   inboxUnreadCount = 0,
   onCreateIssue,
+  accountPreferences,
 }: SidebarProps) {
   const pathname = usePathname();
   const resolvedTeams =
@@ -167,6 +180,12 @@ export function Sidebar({
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const sidebarVisibility = accountPreferences?.sidebarVisibility;
+  const badgeStyle = accountPreferences?.sidebarBadgeStyle;
+
+  function isVisible(key: keyof NonNullable<typeof sidebarVisibility>) {
+    return sidebarVisibility?.[key] ?? true;
+  }
 
   useEffect(() => {
     void pathname;
@@ -302,98 +321,107 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto">
-        <SidebarLink
-          href="/inbox"
-          label="Inbox"
-          badge={inboxUnreadCount}
-          active={pathname.startsWith("/inbox")}
-          icon={
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              role="img"
-              aria-label="Inbox icon"
-            >
-              <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
-              <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
-            </svg>
-          }
-        />
-        <SidebarLink
-          href="/my-issues/assigned"
-          label="My Issues"
-          active={pathname.startsWith("/my-issues")}
-          icon={
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              role="img"
-              aria-label="My Issues icon"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="m9 12 2 2 4-4" />
-            </svg>
-          }
-        />
+        {isVisible("inbox") && (
+          <SidebarLink
+            href="/inbox"
+            label="Inbox"
+            badge={inboxUnreadCount}
+            badgeStyle={badgeStyle}
+            active={pathname.startsWith("/inbox")}
+            icon={
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                role="img"
+                aria-label="Inbox icon"
+              >
+                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+                <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+              </svg>
+            }
+          />
+        )}
+        {isVisible("myIssues") && (
+          <SidebarLink
+            href="/my-issues/assigned"
+            label="My Issues"
+            active={pathname.startsWith("/my-issues")}
+            icon={
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                role="img"
+                aria-label="My Issues icon"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+            }
+          />
+        )}
 
         <SectionHeader label="Workspace" />
-        <SidebarLink
-          href="/projects/all"
-          label="Projects"
-          active={isWorkspaceProjectsRoute(pathname)}
-          icon={
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              role="img"
-              aria-label="Projects icon"
-            >
-              <path d="M2 17 12 22 22 17" />
-              <path d="M2 12 12 17 22 12" />
-              <path d="M12 2 2 7 12 12 22 7Z" />
-            </svg>
-          }
-        />
-        <SidebarLink
-          href="/views"
-          label="Views"
-          active={isWorkspaceViewsRoute(pathname)}
-          icon={
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              role="img"
-              aria-label="Views icon"
-            >
-              <path d="M5 12s2.545-5 7-5c4.454 0 7 5 7 5s-2.546 5-7 5c-4.455 0-7-5-7-5z" />
-              <path d="M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
-            </svg>
-          }
-        />
+        {isVisible("projects") && (
+          <SidebarLink
+            href="/projects/all"
+            label="Projects"
+            active={isWorkspaceProjectsRoute(pathname)}
+            icon={
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                role="img"
+                aria-label="Projects icon"
+              >
+                <path d="M2 17 12 22 22 17" />
+                <path d="M2 12 12 17 22 12" />
+                <path d="M12 2 2 7 12 12 22 7Z" />
+              </svg>
+            }
+          />
+        )}
+        {isVisible("views") && (
+          <SidebarLink
+            href="/views"
+            label="Views"
+            active={isWorkspaceViewsRoute(pathname)}
+            icon={
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                role="img"
+                aria-label="Views icon"
+              >
+                <path d="M5 12s2.545-5 7-5c4.454 0 7 5 7 5s-2.546 5-7 5c-4.455 0-7-5-7-5z" />
+                <path d="M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
+              </svg>
+            }
+          />
+        )}
 
         <button
           type="button"
@@ -637,56 +665,60 @@ export function Sidebar({
           })}
 
         <SectionHeader label="Try" />
-        <SidebarLink
-          href="/initiatives"
-          label="Initiatives"
-          active={pathname.startsWith("/initiatives")}
-          icon={
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              role="img"
-              aria-label="Initiatives icon"
-            >
-              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-              <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-              <path d="M4 22h16" />
-              <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-              <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-              <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-            </svg>
-          }
-        />
-        <SidebarLink
-          href={`/team/${teamKey}/cycles`}
-          label="Cycles"
-          active={pathname.includes("/cycles")}
-          icon={
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              role="img"
-              aria-label="Cycles icon"
-            >
-              <path d="M21.5 2v6h-6" />
-              <path d="M2.5 22v-6h6" />
-              <path d="M22 11.5A10 10 0 0 0 3.2 7.2" />
-              <path d="M2 12.5a10 10 0 0 0 18.8 4.3" />
-            </svg>
-          }
-        />
+        {isVisible("initiatives") && (
+          <SidebarLink
+            href="/initiatives"
+            label="Initiatives"
+            active={pathname.startsWith("/initiatives")}
+            icon={
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                role="img"
+                aria-label="Initiatives icon"
+              >
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                <path d="M4 22h16" />
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+              </svg>
+            }
+          />
+        )}
+        {isVisible("cycles") && (
+          <SidebarLink
+            href={`/team/${teamKey}/cycles`}
+            label="Cycles"
+            active={pathname.includes("/cycles")}
+            icon={
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                role="img"
+                aria-label="Cycles icon"
+              >
+                <path d="M21.5 2v6h-6" />
+                <path d="M2.5 22v-6h6" />
+                <path d="M22 11.5A10 10 0 0 0 3.2 7.2" />
+                <path d="M2 12.5a10 10 0 0 0 18.8 4.3" />
+              </svg>
+            }
+          />
+        )}
       </nav>
 
       <div className="relative mt-auto pt-2">

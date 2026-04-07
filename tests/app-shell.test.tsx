@@ -280,6 +280,13 @@ describe("AppShell", () => {
         } as Response;
       }
 
+      if (url.includes("/api/account/preferences")) {
+        return {
+          ok: true,
+          json: async () => ({ accountPreferences: {} }),
+        } as Response;
+      }
+
       throw new Error(`Unhandled fetch: ${url}`);
     });
   });
@@ -375,6 +382,13 @@ describe("AppShell", () => {
         } as Response;
       }
 
+      if (url.includes("/api/account/preferences")) {
+        return {
+          ok: true,
+          json: async () => ({ accountPreferences: {} }),
+        } as Response;
+      }
+
       if (url.includes("/api/teams/QAX2/context")) {
         return {
           ok: true,
@@ -424,6 +438,12 @@ describe("AppShell", () => {
           json: async () => ({ unreadCount: 2, notifications: [] }),
         } as Response;
       }
+      if (url.includes("/api/account/preferences")) {
+        return {
+          ok: true,
+          json: async () => ({ accountPreferences: {} }),
+        } as Response;
+      }
       if (url.includes("/create-issue-options")) {
         return {
           ok: true,
@@ -463,6 +483,12 @@ describe("AppShell", () => {
           json: async () => ({ unreadCount: 2, notifications: [] }),
         } as Response;
       }
+      if (url.includes("/api/account/preferences")) {
+        return {
+          ok: true,
+          json: async () => ({ accountPreferences: {} }),
+        } as Response;
+      }
       if (url.includes("/create-issue-options")) {
         return {
           ok: true,
@@ -500,6 +526,12 @@ describe("AppShell", () => {
         return {
           ok: true,
           json: async () => ({ unreadCount: 2, notifications: [] }),
+        } as Response;
+      }
+      if (url.includes("/api/account/preferences")) {
+        return {
+          ok: true,
+          json: async () => ({ accountPreferences: {} }),
         } as Response;
       }
       if (url.includes("/create-issue-options")) {
