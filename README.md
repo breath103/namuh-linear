@@ -1,7 +1,7 @@
 # namuh-linear
 
 [![GitHub stars](https://img.shields.io/github/stars/namuh-eng/namuh-linear?style=flat-square)](https://github.com/namuh-eng/namuh-linear)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg?style=flat-square)](LICENSE)
+[![License: ELv2](https://img.shields.io/badge/License-Elastic%202.0-blue.svg?style=flat-square)](LICENSE)
 [![Docker pulls](https://img.shields.io/docker/pulls/namuh-eng/namuh-linear?style=flat-square)](https://hub.docker.com/r/namuh-eng/namuh-linear)
 
 **Open source Linear alternative — keyboard-first issue tracking for software teams.**
@@ -229,9 +229,7 @@ We welcome contributions! Whether it's bug fixes, new features, or improvements 
 
 ## License
 
-[AGPL-3.0](LICENSE) — Use, modify, and distribute freely. See [LICENSE](LICENSE) for details.
-
-If you use namuh-linear in a network service, you must provide source code access to users under AGPL-3.0.
+[Elastic License 2.0](LICENSE) — Use, modify, and self-host freely. You may not offer the software as a hosted service to third parties. See [LICENSE](LICENSE) for full terms.
 
 ---
 
