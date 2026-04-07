@@ -108,11 +108,20 @@ export function Sidebar({
           </span>
         </div>
         <div className="flex items-center gap-0.5">
-          {/* Search button */}
+          {/* Search button — opens command palette */}
           <button
             type="button"
             className="flex h-7 w-7 items-center justify-center rounded-md text-[#6b6f76] transition-colors hover:bg-[#1a1a1e] hover:text-white"
             aria-label="Search"
+            onClick={() =>
+              document.dispatchEvent(
+                new KeyboardEvent("keydown", {
+                  key: "k",
+                  metaKey: true,
+                  bubbles: true,
+                }),
+              )
+            }
           >
             <svg
               width="15"

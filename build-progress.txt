@@ -870,3 +870,43 @@ Date: 2026-04-07
 - Triage state lookup uses workflow_state category = "triage"
 - Action buttons visible on hover to keep UI clean
 - Creator info shown instead of assignee (triage issues typically unassigned)
+
+## Iteration 28 — feature-040: Command Palette (Cmd+K)
+Date: 2026-04-07
+
+### What was built
+- Global command palette overlay triggered by Cmd+K (or Ctrl+K)
+- Search input with "Type a command or search..." placeholder
+- Issue search via `/api/issues/search?q=` endpoint (searches by title and identifier)
+- Grouped commands: Issues (Create new issue, Create in fullscreen), Projects (Create project), Views (Create view), Navigation (Inbox, My Issues, Projects, Issues, Board, Cycles, Initiatives, Settings)
+- Keyboard shortcuts displayed next to commands (C, V, N P)
+- Arrow key navigation (up/down) with visual highlight
+- Enter key to execute selected command or navigate to issue
+- Escape to close, backdrop click to close, toggle with repeated Cmd+K
+- "Quick results for {query}" section showing matching issues with priority dots
+- Empty state when no results match
+- Footer bar with Enter/arrow key hints
+- Sidebar search button wired to open command palette
+- Custom event dispatch to open create issue modal from palette
+
+### Test results
+- 13 unit tests passing (tests/command-palette.test.tsx)
+- E2E test written (tests/e2e/command-palette.spec.ts) — 4 test cases
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+- 377 total tests passing (pre-existing failures in onboard-validation.test.ts and empty-states.test.tsx unchanged)
+
+### Files changed
+- src/components/command-palette.tsx — new component (command palette with search, commands, keyboard nav)
+- src/app/api/issues/search/route.ts — new API route (issue search by title/identifier)
+- src/app/(app)/app-shell.tsx — added CommandPalette to app shell
+- src/components/sidebar.tsx — wired search button to open command palette
+- tests/command-palette.test.tsx — replaced scaffolded test with 13 comprehensive tests
+- tests/e2e/command-palette.spec.ts — new E2E test file
+
+### Decisions
+- Command palette manages its own open/close state internally (no prop-based control) — simpler integration
+- Search debounced at 200ms to avoid excessive API calls
+- Used `<dialog>` element for accessibility (Biome a11y requirement)
+- Issue search scoped to user's workspace teams
+- Sidebar search button dispatches synthetic Cmd+K event to toggle palette

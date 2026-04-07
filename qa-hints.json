@@ -507,5 +507,32 @@
       "Multiple triage states handling",
       "Visual comparison with Linear's actual Triage layout"
     ]
+  },
+  {
+    "feature_id": "feature-040",
+    "tests_written": [
+      "Does not render when closed",
+      "Opens on Cmd+K keyboard shortcut",
+      "Opens on Ctrl+K keyboard shortcut",
+      "Closes on Escape key",
+      "Closes on backdrop click",
+      "Shows command groups when opened",
+      "Filters commands by query",
+      "Navigates with Enter key on a navigation command",
+      "Shows keyboard shortcuts for commands",
+      "Uses teamKey for team-scoped navigation",
+      "Shows empty state when no results match",
+      "Toggles open/closed with repeated Cmd+K",
+      "Supports arrow key navigation"
+    ],
+    "needs_deeper_qa": [
+      "Real issue search results — API search mocked in unit tests",
+      "Search debounce timing and race conditions with fast typing",
+      "Keyboard navigation with mixed search results and commands",
+      "Visual comparison with Linear's actual command palette layout",
+      "Focus management when opening/closing palette",
+      "Sidebar search button triggering command palette",
+      "Custom event dispatch for opening create issue modal from palette"
+    ]
   }
 ]

@@ -1,5 +1,6 @@
 "use client";
 
+import { CommandPalette } from "@/components/command-palette";
 import { Sidebar } from "@/components/sidebar";
 
 interface AppShellProps {
@@ -30,6 +31,7 @@ export function AppShell({
           {children}
         </div>
       </main>
+      <CommandPalette teamKey={teamKey} />
     </div>
   );
 }
