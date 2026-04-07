@@ -89,5 +89,27 @@
       "Multiple invites with mixed valid/invalid emails",
       "Skip button flow end-to-end"
     ]
+  },
+  {
+    "feature_id": "onboarding-003",
+    "tests_written": [
+      "EmptyState renders title, description, icon",
+      "EmptyState action button fires onClick",
+      "EmptyState action link has correct href",
+      "Team Issues shows No issues with CTA",
+      "Team Board shows No issues with CTA",
+      "Team Cycles shows No active cycle",
+      "Team Triage shows No issues to triage",
+      "Projects shows No projects with CTA",
+      "Inbox shows You're all caught up",
+      "My Issues shows No issues assigned",
+      "Initiatives shows No initiatives"
+    ],
+    "needs_deeper_qa": [
+      "Visual alignment with Linear's actual empty states",
+      "Empty states display correctly within the app shell layout (once built)",
+      "CTA buttons wire up correctly to create modals (once built)",
+      "Responsive layout on mobile screens"
+    ]
   }
 ]

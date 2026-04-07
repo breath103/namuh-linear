@@ -156,3 +156,44 @@ Date: 2026-04-07
 - Emails are sent via existing sendInvitationEmail utility (SES)
 - API validates workspace membership before sending invites
 - Invalid emails are reported per-invite in the response (partial success supported)
+
+## Iteration 6 — onboarding-003: Empty States for Core Features
+Date: 2026-04-07
+
+### What was built
+- Reusable `EmptyState` component (`src/components/empty-state.tsx`) with title, description, icon, and action (button or link)
+- 8 empty state pages under `(app)` route group:
+  - Team Issues (`/team/{key}/all`): "No issues" with Create issue CTA
+  - Team Board (`/team/{key}/board`): "No issues" with Create issue CTA
+  - Team Cycles (`/team/{key}/cycles`): "No active cycle"
+  - Team Triage (`/team/{key}/triage`): "No issues to triage" with Create triage issue CTA
+  - Projects (`/projects`): "No projects" with Create project CTA
+  - Inbox (`/inbox`): "You're all caught up"
+  - My Issues (`/my-issues`): "No issues assigned"
+  - Initiatives (`/initiatives`): "No initiatives"
+- Each page has a unique icon and contextual description
+
+### Test results
+- 14 unit tests passing (tests/empty-states.test.tsx)
+  - 6 tests for EmptyState component (title, description, icon, action button, action link)
+  - 8 tests for empty state pages (one per page)
+- 142 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/components/empty-state.tsx — new reusable EmptyState component
+- src/app/(app)/team/[key]/all/page.tsx — new
+- src/app/(app)/team/[key]/board/page.tsx — new
+- src/app/(app)/team/[key]/cycles/page.tsx — new
+- src/app/(app)/team/[key]/triage/page.tsx — new
+- src/app/(app)/projects/page.tsx — new
+- src/app/(app)/inbox/page.tsx — new
+- src/app/(app)/my-issues/page.tsx — new
+- src/app/(app)/initiatives/page.tsx — new
+- tests/empty-states.test.tsx — new unit test file (14 tests)
+
+### Decisions
+- Used `(app)` route group to separate app pages from auth/onboarding pages
+- EmptyState component is generic and reusable — will be replaced by real content as features are built
+- Pages are client components for now; will be converted to server components when data fetching is added

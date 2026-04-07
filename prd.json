@@ -117,7 +117,7 @@
     "priority": "P3",
     "core": false,
     "dependent_on": ["onboarding-001"],
-    "build_pass": false,
+    "build_pass": true,
     "qa_pass": false
   },
   {
