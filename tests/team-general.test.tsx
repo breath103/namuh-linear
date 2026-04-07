@@ -7,8 +7,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const replaceMock = vi.fn();
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: replaceMock }),
   usePathname: () => "/settings/teams/ENG/general",
   useParams: () => ({ key: "ENG" }),
 }));
@@ -30,18 +32,22 @@ describe("TeamGeneralSettingsPage", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    replaceMock.mockReset();
   });
 
-  async function renderPage() {
+  async function renderPage(
+    patchTeam: typeof mockTeam = mockTeam,
+    getTeam: typeof mockTeam = mockTeam,
+  ) {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ team: mockTeam }),
+        json: () => Promise.resolve({ team: getTeam }),
       })
       .mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ team: mockTeam }),
+        json: () => Promise.resolve({ team: patchTeam }),
       });
 
     vi.stubGlobal("fetch", fetchMock);
@@ -92,8 +98,8 @@ describe("TeamGeneralSettingsPage", () => {
 
   it("renders timezone selector", async () => {
     await renderPage();
-    const matches = screen.getAllByText(/Pacific Time - Los Angeles/);
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+    const timezoneInput = screen.getByLabelText("Timezone") as HTMLInputElement;
+    expect(timezoneInput.value).toContain("GMT-07:00 - Los Angeles");
   });
 
   it("renders 'Estimates' section with description", async () => {
@@ -145,6 +151,7 @@ describe("TeamGeneralSettingsPage", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: "Engineering",
+          icon: "🟣",
           key: "ENG",
           timezone: "America/Los_Angeles",
           estimateType: "none",
@@ -155,6 +162,52 @@ describe("TeamGeneralSettingsPage", () => {
           cycleDurationWeeks: 3,
         }),
       }),
+    );
+  });
+
+  it("lets the user choose an icon before saving", async () => {
+    const fetchMock = await renderPage({
+      ...mockTeam,
+      icon: "🚀",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Change team icon" }));
+    fireEvent.click(screen.getByRole("button", { name: "Choose 🚀 icon" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/teams/ENG/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Engineering",
+          icon: "🚀",
+          key: "ENG",
+          timezone: "America/Los_Angeles",
+          estimateType: "none",
+          emailEnabled: false,
+          detailedHistory: false,
+          cyclesEnabled: false,
+          cycleStartDay: 1,
+          cycleDurationWeeks: 2,
+        }),
+      }),
+    );
+  });
+
+  it("replaces the route when the identifier changes", async () => {
+    await renderPage({
+      ...mockTeam,
+      key: "QAX2",
+    });
+
+    fireEvent.change(screen.getByDisplayValue("ENG"), {
+      target: { value: "QAX2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(replaceMock).toHaveBeenCalledWith("/settings/teams/QAX2/general"),
     );
   });
 });

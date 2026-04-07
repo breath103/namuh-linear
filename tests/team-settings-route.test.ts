@@ -6,6 +6,8 @@ const memberLimitMock = vi.fn();
 const teamLimitMock = vi.fn();
 const countWhereMock = vi.fn();
 const teamWhereMock = vi.fn();
+const updateSetMock = vi.fn();
+const updateWhereMock = vi.fn();
 
 vi.mock("@/lib/auth", () => ({
   auth: {
@@ -58,6 +60,37 @@ vi.mock("@/lib/db", () => ({
         }),
       };
     }),
+    update: vi.fn(() => ({
+      set: (...setArgs: unknown[]) => {
+        updateSetMock(...setArgs);
+        return {
+          where: (...whereArgs: unknown[]) => {
+            updateWhereMock(...whereArgs);
+            return {
+              returning: vi.fn().mockResolvedValue([
+                {
+                  id: "team-2",
+                  workspaceId: "workspace-2",
+                  name: "Scoped Team",
+                  key: "QAX",
+                  icon: "🚀",
+                  timezone: "Asia/Seoul",
+                  estimateType: "linear",
+                  triageEnabled: true,
+                  cyclesEnabled: false,
+                  cycleStartDay: null,
+                  cycleDurationWeeks: null,
+                  settings: {
+                    emailEnabled: true,
+                    detailedHistory: true,
+                  },
+                },
+              ]),
+            };
+          },
+        };
+      },
+    })),
   },
 }));
 
@@ -127,6 +160,50 @@ describe("team settings route", () => {
         id: "team-2",
         key: "QAX",
         name: "Scoped Team",
+      }),
+    });
+  });
+
+  it("persists icon and team settings updates", async () => {
+    const { PATCH } = await import("@/app/api/teams/[key]/settings/route");
+    const response = await PATCH(
+      new Request("http://localhost/api/teams/QAX/settings", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Scoped Team",
+          icon: "🚀",
+          key: "QAX",
+          timezone: "Asia/Seoul",
+          estimateType: "linear",
+          emailEnabled: true,
+          detailedHistory: true,
+        }),
+      }),
+      {
+        params: Promise.resolve({ key: "QAX" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        icon: "🚀",
+        timezone: "Asia/Seoul",
+        estimateType: "linear",
+        settings: expect.objectContaining({
+          emailEnabled: true,
+          detailedHistory: true,
+        }),
+      }),
+    );
+    expect(updateWhereMock).toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({
+      team: expect.objectContaining({
+        icon: "🚀",
+        timezone: "Asia/Seoul",
+        estimateType: "linear",
+        emailEnabled: true,
+        detailedHistory: true,
       }),
     });
   });

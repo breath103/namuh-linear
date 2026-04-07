@@ -1,6 +1,7 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { type TimezoneOption, buildTimezoneOptions } from "@/lib/timezones";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface TeamGeneralData {
@@ -16,26 +17,19 @@ interface TeamGeneralData {
   cycleDurationWeeks: number;
 }
 
-const TIMEZONES = [
-  { value: "Pacific/Honolulu", label: "GMT-10:00 – Hawaii" },
-  { value: "America/Anchorage", label: "GMT-9:00 – Alaska" },
-  {
-    value: "America/Los_Angeles",
-    label: "GMT-7:00 – Pacific Time - Los Angeles",
-  },
-  { value: "America/Denver", label: "GMT-6:00 – Mountain Time - Denver" },
-  { value: "America/Chicago", label: "GMT-5:00 – Central Time - Chicago" },
-  { value: "America/New_York", label: "GMT-4:00 – Eastern Time - New York" },
-  { value: "America/Sao_Paulo", label: "GMT-3:00 – São Paulo" },
-  { value: "Europe/London", label: "GMT+0:00 – London" },
-  { value: "Europe/Paris", label: "GMT+1:00 – Paris" },
-  { value: "Europe/Berlin", label: "GMT+1:00 – Berlin" },
-  { value: "Asia/Dubai", label: "GMT+4:00 – Dubai" },
-  { value: "Asia/Kolkata", label: "GMT+5:30 – Kolkata" },
-  { value: "Asia/Shanghai", label: "GMT+8:00 – Shanghai" },
-  { value: "Asia/Seoul", label: "GMT+9:00 – Seoul" },
-  { value: "Asia/Tokyo", label: "GMT+9:00 – Tokyo" },
-  { value: "Australia/Sydney", label: "GMT+10:00 – Sydney" },
+const EMOJI_OPTIONS = [
+  "🔧",
+  "🚀",
+  "⚡",
+  "🧪",
+  "📦",
+  "🎯",
+  "🛰️",
+  "🛠️",
+  "📱",
+  "🌐",
+  "🎨",
+  "📈",
 ];
 
 const ESTIMATE_OPTIONS = [
@@ -114,12 +108,19 @@ function SectionHeader({
   );
 }
 
+function normalizeIconValue(value: string) {
+  const normalized = Array.from(value.trim()).slice(0, 2).join("");
+  return normalized || "•";
+}
+
 export default function TeamGeneralSettingsPage() {
   const params = useParams();
+  const router = useRouter();
   const teamKey = params.key as string;
   const [team, setTeam] = useState<TeamGeneralData | null>(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
+  const [icon, setIcon] = useState("•");
   const [identifier, setIdentifier] = useState("");
   const [timezone, setTimezone] = useState("America/Los_Angeles");
   const [estimateType, setEstimateType] = useState("none");
@@ -130,6 +131,12 @@ export default function TeamGeneralSettingsPage() {
   const [cycleDurationWeeks, setCycleDurationWeeks] = useState(2);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [customIcon, setCustomIcon] = useState("");
+  const [timezoneInput, setTimezoneInput] = useState("");
+  const [timezoneOptions] = useState<TimezoneOption[]>(() =>
+    buildTimezoneOptions(),
+  );
 
   useEffect(() => {
     fetch(`/api/teams/${teamKey}/settings`)
@@ -144,6 +151,8 @@ export default function TeamGeneralSettingsPage() {
         const t = data.team as TeamGeneralData;
         setTeam(t);
         setName(t.name);
+        setIcon(t.icon || "•");
+        setCustomIcon(t.icon || "•");
         setIdentifier(t.key);
         setTimezone(t.timezone || "America/Los_Angeles");
         setEstimateType(t.estimateType || "none");
@@ -157,6 +166,18 @@ export default function TeamGeneralSettingsPage() {
       .finally(() => setLoading(false));
   }, [teamKey]);
 
+  useEffect(() => {
+    const currentTimezone =
+      timezoneOptions.find(
+        (timezoneOption) => timezoneOption.value === timezone,
+      ) ?? null;
+    setTimezoneInput(
+      currentTimezone
+        ? `${currentTimezone.label} (${currentTimezone.value})`
+        : timezone,
+    );
+  }, [timezone, timezoneOptions]);
+
   async function handleSave() {
     setSaving(true);
     setSaveMessage(null);
@@ -167,6 +188,7 @@ export default function TeamGeneralSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
+          icon,
           key: identifier,
           timezone,
           estimateType,
@@ -189,6 +211,8 @@ export default function TeamGeneralSettingsPage() {
 
       setTeam(data.team);
       setName(data.team.name);
+      setIcon(data.team.icon || "•");
+      setCustomIcon(data.team.icon || "•");
       setIdentifier(data.team.key);
       setTimezone(data.team.timezone || "America/Los_Angeles");
       setEstimateType(data.team.estimateType || "none");
@@ -198,6 +222,12 @@ export default function TeamGeneralSettingsPage() {
       setCycleStartDay(data.team.cycleStartDay || 1);
       setCycleDurationWeeks(data.team.cycleDurationWeeks || 2);
       setSaveMessage("Changes saved");
+
+      if (teamKey !== data.team.key) {
+        router.replace(
+          `/settings/teams/${encodeURIComponent(data.team.key)}/general`,
+        );
+      }
     } catch (error) {
       setSaveMessage(
         error instanceof Error ? error.message : "Failed to save team settings",
@@ -223,7 +253,8 @@ export default function TeamGeneralSettingsPage() {
     );
   }
 
-  const selectedTimezone = TIMEZONES.find((tz) => tz.value === timezone);
+  const selectedTimezone =
+    timezoneOptions.find((tz) => tz.value === timezone) ?? null;
 
   return (
     <div className="max-w-[720px]">
@@ -237,12 +268,77 @@ export default function TeamGeneralSettingsPage() {
           Icon & Name
         </div>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-border)] text-[20px] hover:bg-[var(--color-surface-hover)]"
-          >
-            {team.icon}
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="Change team icon"
+              aria-expanded={iconPickerOpen}
+              aria-haspopup="dialog"
+              onClick={() => {
+                setCustomIcon(icon);
+                setIconPickerOpen((current) => !current);
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-border)] text-[20px] hover:bg-[var(--color-surface-hover)]"
+            >
+              {icon}
+            </button>
+            {iconPickerOpen && (
+              <dialog
+                open
+                aria-label="Team icon picker"
+                className="absolute left-0 top-12 z-20 w-[220px] rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] p-3 shadow-lg"
+              >
+                <div className="mb-2 text-[12px] font-medium text-[var(--color-text-secondary)]">
+                  Choose an icon
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {EMOJI_OPTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      aria-label={`Choose ${emoji} icon`}
+                      onClick={() => {
+                        setIcon(emoji);
+                        setCustomIcon(emoji);
+                        setIconPickerOpen(false);
+                      }}
+                      className={`flex h-10 items-center justify-center rounded-md border text-[18px] transition-colors ${
+                        icon === emoji
+                          ? "border-[var(--color-accent)] bg-[var(--color-surface-hover)]"
+                          : "border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                <label className="mt-3 flex flex-col gap-1 text-[12px] text-[var(--color-text-secondary)]">
+                  <span>Custom icon</span>
+                  <div className="flex gap-2">
+                    <input
+                      aria-label="Custom team icon"
+                      type="text"
+                      value={customIcon}
+                      onChange={(event) =>
+                        setCustomIcon(normalizeIconValue(event.target.value))
+                      }
+                      className="min-w-0 flex-1 rounded-md border border-[var(--color-border)] bg-transparent px-3 py-2 text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIcon(normalizeIconValue(customIcon));
+                        setIconPickerOpen(false);
+                      }}
+                      className="rounded-md border border-[var(--color-border)] px-3 py-2 text-[12px] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </label>
+              </dialog>
+            )}
+          </div>
           <input
             type="text"
             value={name}
@@ -274,25 +370,62 @@ export default function TeamGeneralSettingsPage() {
       />
 
       <div className="rounded-lg border border-[var(--color-border)] p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <span className="text-[13px] text-[var(--color-text-primary)]">
             Timezone
           </span>
-          <select
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            className="rounded-md border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] outline-none"
-          >
-            {TIMEZONES.map((tz) => (
-              <option key={tz.value} value={tz.value}>
-                {tz.label}
-              </option>
+          <input
+            list="team-timezone-options"
+            aria-label="Timezone"
+            value={timezoneInput}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setTimezoneInput(nextValue);
+
+              const matchingTimezone = timezoneOptions.find(
+                (timezoneOption) =>
+                  timezoneOption.value === nextValue ||
+                  timezoneOption.label === nextValue ||
+                  `${timezoneOption.label} (${timezoneOption.value})` ===
+                    nextValue,
+              );
+
+              if (matchingTimezone) {
+                setTimezone(matchingTimezone.value);
+              }
+            }}
+            onBlur={() => {
+              const matchingTimezone = timezoneOptions.find(
+                (timezoneOption) =>
+                  timezoneOption.value === timezoneInput ||
+                  timezoneOption.label === timezoneInput ||
+                  `${timezoneOption.label} (${timezoneOption.value})` ===
+                    timezoneInput,
+              );
+
+              setTimezoneInput(
+                matchingTimezone
+                  ? `${matchingTimezone.label} (${matchingTimezone.value})`
+                  : selectedTimezone
+                    ? `${selectedTimezone.label} (${selectedTimezone.value})`
+                    : timezone,
+              );
+            }}
+            placeholder="Search by city or timezone"
+            className="min-w-[320px] rounded-md border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] outline-none"
+          />
+          <datalist id="team-timezone-options">
+            {timezoneOptions.map((timezoneOption) => (
+              <option
+                key={timezoneOption.value}
+                value={`${timezoneOption.label} (${timezoneOption.value})`}
+              />
             ))}
-          </select>
+          </datalist>
         </div>
         {selectedTimezone && (
           <div className="mt-1 text-right text-[11px] text-[var(--color-text-tertiary)]">
-            {selectedTimezone.label}
+            {selectedTimezone.value}
           </div>
         )}
       </div>

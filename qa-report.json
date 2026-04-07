@@ -1535,5 +1535,44 @@
       }
     ],
     "fix_description": "Scoped team-settings lookups to the active workspace, turned every hub card into a real navigation target with dedicated team-setting destinations, added confirmation-driven leave/retire/delete flows backed by the team settings API, and added regression coverage plus live API/browser verification."
+  },
+  {
+    "feature_id": "settings-011",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; the full Vitest suite passed before the feature-specific fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the authenticated smoke flow passed after the fixes.",
+      "Verified the pre-fix defects in a live authenticated browser session on `/settings/teams/QAX2/general`: the icon button opened no picker, the timezone control exposed only 16 hardcoded options, and renaming the identifier broke the route after reload with `Team not found`.",
+      "Added a live timezone catalog and confirmed the final page now exposes 419 timezone options, including `Europe/Madrid`, through the timezone search field.",
+      "Used the fixed browser flow to set the team icon to `🚀`, enable `Create issues by email` and `Enable detailed issue history`, change estimation to `Linear`, and persist the timezone to `Europe/Madrid`; the page continued to show `qax2@team.linear.app` after reload.",
+      "Verified the identifier-rename regression is fixed end to end by renaming `QAX2 -> QA12 -> QAX2` in the live browser and confirming both reloads stayed on working general-settings pages instead of falling into `Team not found`.",
+      "Queried Postgres directly after the browser save and confirmed the persisted row has `key=QAX2`, `icon=🚀`, `timezone=Europe/Madrid`, `estimate_type=linear`, and `settings.emailEnabled/settings.detailedHistory=true`.",
+      "Saved the post-fix browser evidence screenshot to `ralph/screenshots/qa/settings-011-final.png` and compared it against `ralph/screenshots/inspect/settings-team-general.jpg`; the clone now matches the Linear page structure and control set, with the remaining difference being the clone's light theme."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "The team icon control was inert, so the General settings page did not provide the editable icon/emoji picker required by the spec.",
+        "expected": "Clicking the team icon should open an icon picker and allow the selected icon to persist.",
+        "actual": "Before the fix, the icon rendered as a static button with no picker UI and no icon value in the save payload.",
+        "reproduction": "1. Sign in and open `/settings/teams/{key}/general`.\n2. Click the team icon button in the `Icon & Name` card.\n3. Observe that no picker appears and no icon can be changed."
+      },
+      {
+        "severity": "major",
+        "description": "The timezone control did not implement the required full timezone combobox.",
+        "expected": "The page should provide a searchable timezone combobox with the full timezone catalog and GMT offset plus city labels.",
+        "actual": "Before the fix, the page used a short static `<select>` with only 16 options and no search capability.",
+        "reproduction": "1. Open `/settings/teams/{key}/general`.\n2. Open the timezone control.\n3. Observe that only a short hardcoded list is available and common entries such as `Europe/Madrid` are missing."
+      },
+      {
+        "severity": "major",
+        "description": "Changing the team identifier broke the current route after reload.",
+        "expected": "After saving a new identifier, the page should move to the new `/settings/teams/{newKey}/general` route so reloads continue to work.",
+        "actual": "Before the fix, the settings API saved the new key but the page stayed on the old URL, so reloading produced `Team not found`.",
+        "reproduction": "1. Open `/settings/teams/{key}/general`.\n2. Change `Identifier` to a new valid team key and click `Save changes`.\n3. Reload the page.\n4. Observe that the old route returns `Team not found`."
+      }
+    ],
+    "fix_description": "Added a working team-icon picker with persisted icon updates, replaced the short timezone selector with a searchable full timezone catalog, and redirected the page to the new team-settings route after identifier saves so reloads continue to resolve correctly."
   }
 ]

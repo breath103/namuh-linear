@@ -159,6 +159,7 @@ export async function PATCH(
 
   const body = (await request.json().catch(() => null)) as {
     name?: string;
+    icon?: string;
     key?: string;
     timezone?: string;
     estimateType?: string;
@@ -174,6 +175,7 @@ export async function PATCH(
   }
 
   const nextName = body.name?.trim();
+  const nextIcon = body.icon?.trim() || teamRecord.icon || "•";
   const nextKey = body.key?.trim().toUpperCase();
   const nextEstimateType = (
     body.estimateType === "none" ? "not_in_use" : body.estimateType
@@ -267,6 +269,7 @@ export async function PATCH(
     .update(team)
     .set({
       name: nextName,
+      icon: nextIcon,
       key: nextKey,
       timezone: body.timezone?.trim() || null,
       estimateType:
