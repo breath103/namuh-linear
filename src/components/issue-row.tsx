@@ -109,9 +109,10 @@ export function IssueRow({
 
       {/* Project */}
       {showProp("project") && projectName && (
-        <span className="max-w-[160px] shrink-0 truncate text-[12px] text-[var(--color-text-secondary)]">
-          {projectName}
-        </span>
+        <div className="flex max-w-[220px] shrink-0 items-center gap-1 text-[12px] text-[var(--color-text-secondary)]">
+          <span aria-hidden="true">›</span>
+          <span className="truncate">{projectName}</span>
+        </div>
       )}
 
       {/* Due date */}

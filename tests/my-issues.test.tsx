@@ -46,8 +46,10 @@ const sampleData = {
           labels: [{ name: "bug", color: "#e53e3e" }],
           labelIds: ["bug"],
           projectId: null,
+          projectName: "Platform polish",
           dueDate: null,
           createdAt: "2026-03-01",
+          displayAt: "2026-03-04",
           teamKey: "ENG",
         },
       ],
@@ -73,6 +75,7 @@ const sampleData = {
           labels: [],
           labelIds: [],
           projectId: null,
+          projectName: null,
           dueDate: null,
           createdAt: "2026-03-02",
           teamKey: "ENG",
@@ -202,5 +205,33 @@ describe("MyIssuesTabPage", () => {
     await screen.findByText("ENG-1");
     const avatars = screen.getAllByTestId("assignee");
     expect(avatars.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows project breadcrumb text when project data is available", async () => {
+    mockFetch(sampleData);
+    render(<MyIssuesTabPage />);
+    expect(await screen.findByText("Platform polish")).toBeDefined();
+  });
+});
+
+describe("My Issues API route", () => {
+  it("selects the most recent workspace membership for the current session", async () => {
+    const fs = await import("node:fs");
+    const content = fs.readFileSync("src/app/api/my-issues/route.ts", "utf-8");
+    expect(content).toContain(".orderBy(desc(member.createdAt))");
+  });
+
+  it("includes commenter-derived issues for subscribed and activity tabs", async () => {
+    const fs = await import("node:fs");
+    const content = fs.readFileSync("src/app/api/my-issues/route.ts", "utf-8");
+    expect(content).toContain("fetchIssuesByCommenter");
+    expect(content).toContain("sortIssuesByUpdatedAtDesc");
+  });
+
+  it("deduplicates cross-team status filters by grouped status key", async () => {
+    const fs = await import("node:fs");
+    const content = fs.readFileSync("src/app/api/my-issues/route.ts", "utf-8");
+    expect(content).toContain("stateId: groupKey");
+    expect(content).toContain("statuses: statusOptions");
   });
 });

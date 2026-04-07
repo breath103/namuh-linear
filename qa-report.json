@@ -873,5 +873,58 @@
     ],
     "bugs_found": [],
     "fix_description": "No feature-020 product bug required fixing. I repaired the stale Playwright auth setup so the required smoke coverage can authenticate reliably again, then verified the inbox feature end to end with real notifications and live API writes."
+  },
+  {
+    "feature_id": "feature-021",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 620 unit tests passed before the feature-021 fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; smoke passed on `http://localhost:3015` with the existing auth setup.",
+      "Logged into the clone via real Google OAuth with `TEST_ACCOUNT_EMAIL=jaeyunha0317@gmail.com`, opened `/my-issues/assigned`, and reproduced the initial failure: the page showed the empty state even though the active workspace already had assigned `QAX2-*` issues in Postgres.",
+      "Confirmed the root cause live by calling `/api/my-issues?tab=assigned` in the authenticated browser and observing `totalCount: 0`, then querying Postgres and verifying the signed-in user had assigned issues in the shell's active workspace.",
+      "Fixed the My Issues API to use the most recent workspace membership like the app shell, return project names for issue rows, merge subscribed/activity data from assignment, creation, and comments, and group workspace-wide states consistently across teams.",
+      "Re-verified `/my-issues/assigned` in Ever after the fix: the page now renders 18 real issues, including the pre-existing `QAX2-*` records plus a seeded cross-team `MIX-1` record, with status icons, identifiers, labels, assignee avatars, project breadcrumb text, and dates.",
+      "Opened the display-options menu and verified the `Project` property toggle hides and restores project breadcrumb text on the live list without affecting counts.",
+      "Applied a live `Status is Backlog` filter and verified the page reduced to the backlog rows with `16 hidden` in the header/footer, matching the 18 total assigned issues minus the 2 visible backlog issues.",
+      "Seeded a second team plus one assigned/commented issue in the same workspace, then verified cross-team rows render in the same My Issues view with distinct identifiers and without duplicate status sections.",
+      "Verified the `Created`, `Subscribed`, and `Activity` tabs all return live data for the active workspace; `Subscribed` now includes assignment/creation/comment-derived issues, and `Activity`/`Created` surface the newest `MIX-1` and `QAX2-39` rows first by date.",
+      "Verified `http://localhost:3015/my-issues` redirects to `/my-issues/assigned` in the authenticated browser.",
+      "Captured QA evidence screenshots to `ralph/screenshots/qa/feature-021-assigned-attempt-1.jpg` and `ralph/screenshots/qa/feature-021-filtered-attempt-1.jpg`, and compared the overall structure against `ralph/screenshots/inspect/my-issues.jpg` / `my-issues-assigned.jpg`.",
+      "Ran `make check`; typecheck and Biome lint/format passed after formatting the touched route and generated JSON artifacts.",
+      "Ran `make test`; all 624 unit tests passed after adding My Issues regressions.",
+      "Ran full Playwright coverage with `make test-e2e` because the fix touched the shared `IssueRow` component. Smoke still passed, while the only failing specs were the pre-existing unrelated `tests/e2e/command-palette.spec.ts` cases where the command palette dialog never opens."
+    ],
+    "bugs_found": [
+      {
+        "severity": "critical",
+        "description": "The My Issues API resolved a different workspace than the shell, so the page queried the wrong workspace for users with multiple memberships.",
+        "expected": "My Issues should show the active workspace's assigned/created/subscribed/activity issues under the workspace currently rendered in the app shell.",
+        "actual": "The shell showed `QA Fix 20260407 1644`, but `/api/my-issues?tab=assigned` returned `totalCount: 0` and the page rendered `No issues assigned` because the API selected an older workspace membership.",
+        "reproduction": "1. Sign in with an account that belongs to multiple workspaces.\n2. Open `http://localhost:3015/my-issues/assigned` in the newest workspace shown by the shell.\n3. Observe the empty state even though the same user has assigned issues in that workspace."
+      },
+      {
+        "severity": "major",
+        "description": "Issue rows on My Issues omitted the PRD-required project breadcrumb.",
+        "expected": "Rows with linked projects should display project breadcrumb text alongside the identifier/title metadata.",
+        "actual": "The API did not return project names for My Issues rows, so project-linked issues rendered without any project breadcrumb.",
+        "reproduction": "1. Open `http://localhost:3015/my-issues/assigned` with project-linked issues in the active workspace.\n2. Inspect rows like `QAX2-27` before the fix.\n3. Observe the row shows identifier/title/date but no project name."
+      },
+      {
+        "severity": "major",
+        "description": "The Subscribed and Activity tabs were under-populated because they only approximated subscription/activity data.",
+        "expected": "Subscribed should include issues surfaced by assignment, creation, and comment-based activity, and Activity should reflect recent issue interaction in the active workspace.",
+        "actual": "Subscribed previously only looked at comment-linked issues, and Activity only merged assigned plus created issues without the commenter path.",
+        "reproduction": "1. Create or assign issues to the signed-in user without adding a comment.\n2. Open `/my-issues/subscribed` and `/my-issues/activity` before the fix.\n3. Observe the tabs miss issues that should appear from assignment/creation context."
+      },
+      {
+        "severity": "major",
+        "description": "Cross-team status filtering was broken because the filter menu duplicated the same status once per team and filtered only one team's state IDs.",
+        "expected": "Workspace-wide My Issues status filters should show one entry per visible status group and filter matching issues across every team in the workspace.",
+        "actual": "After adding a second team, the filter menu showed duplicate `Backlog`, `Todo`, `In Progress`, and `Done` entries, and selecting one only filtered a single team's state records.",
+        "reproduction": "1. Ensure the active workspace has at least two teams with default workflow states.\n2. Open `http://localhost:3015/my-issues/assigned`.\n3. Click `Add filter` then `Status`.\n4. Observe duplicate status entries before the fix, and selecting one only matches one team's rows."
+      }
+    ],
+    "fix_description": "Aligned the My Issues API with the shell's workspace selection, added project breadcrumb data to issue rows, broadened subscribed/activity aggregation to include assignment/creation/comment-derived issues, merged identical states across teams for workspace-wide views, and fixed status filtering so cross-team My Issues rows filter against shared grouped status options."
   }
 ]

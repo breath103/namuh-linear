@@ -28,8 +28,11 @@ interface IssueData {
   labels: { name: string; color: string }[];
   labelIds: string[];
   projectId: string | null;
+  projectName?: string | null;
   dueDate: string | null;
   createdAt: string;
+  updatedAt?: string;
+  displayAt?: string;
   teamKey?: string;
 }
 
@@ -340,7 +343,8 @@ export default function MyIssuesTabPage() {
                 assigneeName={iss.assignee?.name}
                 assigneeImage={iss.assignee?.image ?? undefined}
                 labels={iss.labels}
-                createdAt={iss.createdAt}
+                projectName={iss.projectName ?? undefined}
+                createdAt={iss.displayAt ?? iss.createdAt}
                 displayProperties={displayProperties}
               />
             ))}

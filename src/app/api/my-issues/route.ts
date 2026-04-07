@@ -6,6 +6,7 @@ import {
   issueLabel,
   label,
   member,
+  project,
   team,
   user,
   workflowState,
@@ -29,6 +30,7 @@ export async function GET(request: Request) {
     .select({ workspaceId: member.workspaceId })
     .from(member)
     .where(eq(member.userId, userId))
+    .orderBy(desc(member.createdAt))
     .limit(1);
 
   if (memberships.length === 0) {
@@ -63,58 +65,21 @@ export async function GET(request: Request) {
   } else if (tab === "created") {
     issues = await fetchIssuesByCreator(userId, teamIds);
   } else if (tab === "subscribed") {
-    // Subscribed = issues user has commented on (but isn't assignee)
-    const commentedIssueIds = await db
-      .select({ issueId: comment.issueId })
-      .from(comment)
-      .where(eq(comment.userId, userId));
-
-    const uniqueIssueIds = [
-      ...new Set(commentedIssueIds.map((c) => c.issueId)),
-    ];
-
-    if (uniqueIssueIds.length === 0) {
-      return NextResponse.json({
-        groups: [],
-        filterOptions: emptyFilterOptions,
-      });
-    }
-
-    issues = await db
-      .select({
-        id: issue.id,
-        number: issue.number,
-        identifier: issue.identifier,
-        title: issue.title,
-        priority: issue.priority,
-        stateId: issue.stateId,
-        assigneeId: issue.assigneeId,
-        assigneeName: user.name,
-        assigneeImage: user.image,
-        projectId: issue.projectId,
-        dueDate: issue.dueDate,
-        createdAt: issue.createdAt,
-        sortOrder: issue.sortOrder,
-        teamId: issue.teamId,
-      })
-      .from(issue)
-      .leftJoin(user, eq(issue.assigneeId, user.id))
-      .where(
-        and(inArray(issue.teamId, teamIds), inArray(issue.id, uniqueIssueIds)),
-      )
-      .orderBy(asc(issue.sortOrder), desc(issue.createdAt));
+    issues = sortIssuesByUpdatedAtDesc(
+      dedupeIssuesById([
+        ...(await fetchIssuesByAssignee(userId, teamIds)),
+        ...(await fetchIssuesByCreator(userId, teamIds)),
+        ...(await fetchIssuesByCommenter(userId, teamIds)),
+      ]),
+    );
   } else {
-    // "activity" — most recently updated issues the user interacted with (assigned + created + commented)
-    issues = await fetchIssuesByAssignee(userId, teamIds);
-    const createdIssues = await fetchIssuesByCreator(userId, teamIds);
-
-    const seenIds = new Set(issues.map((i) => i.id));
-    for (const ci of createdIssues) {
-      if (!seenIds.has(ci.id)) {
-        issues.push(ci);
-        seenIds.add(ci.id);
-      }
-    }
+    issues = sortIssuesByUpdatedAtDesc(
+      dedupeIssuesById([
+        ...(await fetchIssuesByAssignee(userId, teamIds)),
+        ...(await fetchIssuesByCreator(userId, teamIds)),
+        ...(await fetchIssuesByCommenter(userId, teamIds)),
+      ]),
+    );
   }
 
   // Get labels for all issues
@@ -146,43 +111,102 @@ export async function GET(request: Request) {
   // Build team lookup
   const teamMap = new Map(teams.map((t) => [t.id, t]));
 
-  // Group issues by workflow state category (Triage, Active, Backlog)
+  // Group issues by workflow state name so identical states across teams
+  // render as one section in workspace-wide My Issues views.
   const stateMap = new Map(states.map((s) => [s.id, s]));
-
-  const grouped = states
-    .map((state) => ({
+  const groupedByStateName = new Map<
+    string,
+    {
       state: {
-        id: state.id,
+        id: string;
+        name: string;
+        category: string;
+        color: string;
+        position: number;
+      };
+      issues: Array<{
+        id: string;
+        number: number;
+        identifier: string;
+        title: string;
+        priority: string;
+        stateId: string;
+        assigneeId: string | null;
+        assignee: { name: string; image: string | null } | null;
+        labels: { name: string; color: string }[];
+        labelIds: string[];
+        projectId: string | null;
+        projectName: string | null;
+        dueDate: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+        displayAt: Date;
+        teamKey: string;
+      }>;
+    }
+  >();
+
+  for (const issueRecord of issues) {
+    const state = stateMap.get(issueRecord.stateId);
+    if (!state) {
+      continue;
+    }
+
+    const groupKey = `${state.category}:${state.name}`;
+    const existingGroup = groupedByStateName.get(groupKey);
+    const t = teamMap.get(issueRecord.teamId);
+    const issueEntry = {
+      id: issueRecord.id,
+      number: issueRecord.number,
+      identifier: issueRecord.identifier,
+      title: issueRecord.title,
+      priority: issueRecord.priority,
+      stateId: groupKey,
+      assigneeId: issueRecord.assigneeId,
+      assignee: issueRecord.assigneeName
+        ? { name: issueRecord.assigneeName, image: issueRecord.assigneeImage }
+        : null,
+      labels: labelsMap[issueRecord.id] ?? [],
+      labelIds: (labelsMap[issueRecord.id] ?? []).map((l) => l.name),
+      projectId: issueRecord.projectId,
+      projectName: issueRecord.projectName,
+      dueDate: issueRecord.dueDate,
+      createdAt: issueRecord.createdAt,
+      updatedAt: issueRecord.updatedAt,
+      displayAt:
+        tab === "activity" ? issueRecord.updatedAt : issueRecord.createdAt,
+      teamKey: t?.key ?? "",
+    };
+
+    if (existingGroup) {
+      existingGroup.issues.push(issueEntry);
+      continue;
+    }
+
+    groupedByStateName.set(groupKey, {
+      state: {
+        id: groupKey,
         name: state.name,
         category: state.category,
         color: state.color,
         position: state.position,
       },
-      issues: issues
-        .filter((i) => i.stateId === state.id)
-        .map((i) => {
-          const t = teamMap.get(i.teamId);
-          return {
-            id: i.id,
-            number: i.number,
-            identifier: i.identifier,
-            title: i.title,
-            priority: i.priority,
-            stateId: i.stateId,
-            assigneeId: i.assigneeId,
-            assignee: i.assigneeName
-              ? { name: i.assigneeName, image: i.assigneeImage }
-              : null,
-            labels: labelsMap[i.id] ?? [],
-            labelIds: (labelsMap[i.id] ?? []).map((l) => l.name),
-            projectId: i.projectId,
-            dueDate: i.dueDate,
-            createdAt: i.createdAt,
-            teamKey: t?.key ?? "",
-          };
-        }),
-    }))
-    .filter((g) => g.issues.length > 0);
+      issues: [issueEntry],
+    });
+  }
+
+  const grouped = Array.from(groupedByStateName.values()).sort(
+    (left, right) => left.state.position - right.state.position,
+  );
+  const statusOptions = Array.from(
+    groupedByStateName.values(),
+    ({ state }) => ({
+      id: state.id,
+      name: state.name,
+      category: state.category,
+      color: state.color,
+    }),
+  );
 
   // Build filter options
   const uniqueAssignees: { id: string; name: string; image: string | null }[] =
@@ -214,12 +238,7 @@ export async function GET(request: Request) {
     groups: grouped,
     totalCount: issues.length,
     filterOptions: {
-      statuses: states.map((s) => ({
-        id: s.id,
-        name: s.name,
-        category: s.category,
-        color: s.color,
-      })),
+      statuses: statusOptions,
       assignees: uniqueAssignees,
       labels: uniqueLabels,
       priorities: [
@@ -246,8 +265,10 @@ interface IssueRecord {
   assigneeName: string | null;
   assigneeImage: string | null;
   projectId: string | null;
+  projectName: string | null;
   dueDate: Date | null;
   createdAt: Date;
+  updatedAt: Date;
   sortOrder: number;
   teamId: string;
 }
@@ -281,13 +302,16 @@ async function fetchIssuesByAssignee(
       assigneeName: user.name,
       assigneeImage: user.image,
       projectId: issue.projectId,
+      projectName: project.name,
       dueDate: issue.dueDate,
       createdAt: issue.createdAt,
+      updatedAt: issue.updatedAt,
       sortOrder: issue.sortOrder,
       teamId: issue.teamId,
     })
     .from(issue)
     .leftJoin(user, eq(issue.assigneeId, user.id))
+    .leftJoin(project, eq(issue.projectId, project.id))
     .where(and(inArray(issue.teamId, teamIds), eq(issue.assigneeId, userId)))
     .orderBy(asc(issue.sortOrder), desc(issue.createdAt));
 }
@@ -308,13 +332,66 @@ async function fetchIssuesByCreator(
       assigneeName: user.name,
       assigneeImage: user.image,
       projectId: issue.projectId,
+      projectName: project.name,
       dueDate: issue.dueDate,
       createdAt: issue.createdAt,
+      updatedAt: issue.updatedAt,
       sortOrder: issue.sortOrder,
       teamId: issue.teamId,
     })
     .from(issue)
     .leftJoin(user, eq(issue.assigneeId, user.id))
+    .leftJoin(project, eq(issue.projectId, project.id))
     .where(and(inArray(issue.teamId, teamIds), eq(issue.creatorId, userId)))
-    .orderBy(asc(issue.sortOrder), desc(issue.createdAt));
+    .orderBy(desc(issue.createdAt));
+}
+
+async function fetchIssuesByCommenter(
+  userId: string,
+  teamIds: string[],
+): Promise<IssueRecord[]> {
+  return db
+    .select({
+      id: issue.id,
+      number: issue.number,
+      identifier: issue.identifier,
+      title: issue.title,
+      priority: issue.priority,
+      stateId: issue.stateId,
+      assigneeId: issue.assigneeId,
+      assigneeName: user.name,
+      assigneeImage: user.image,
+      projectId: issue.projectId,
+      projectName: project.name,
+      dueDate: issue.dueDate,
+      createdAt: issue.createdAt,
+      updatedAt: issue.updatedAt,
+      sortOrder: issue.sortOrder,
+      teamId: issue.teamId,
+    })
+    .from(comment)
+    .innerJoin(issue, eq(comment.issueId, issue.id))
+    .leftJoin(user, eq(issue.assigneeId, user.id))
+    .leftJoin(project, eq(issue.projectId, project.id))
+    .where(and(eq(comment.userId, userId), inArray(issue.teamId, teamIds)))
+    .orderBy(desc(issue.updatedAt));
+}
+
+function dedupeIssuesById(issues: IssueRecord[]): IssueRecord[] {
+  const latestById = new Map<string, IssueRecord>();
+
+  for (const issueRecord of issues) {
+    const existing = latestById.get(issueRecord.id);
+    if (!existing || existing.updatedAt < issueRecord.updatedAt) {
+      latestById.set(issueRecord.id, issueRecord);
+    }
+  }
+
+  return Array.from(latestById.values());
+}
+
+function sortIssuesByUpdatedAtDesc(issues: IssueRecord[]): IssueRecord[] {
+  return [...issues].sort(
+    (left, right) => right.updatedAt.getTime() - left.updatedAt.getTime(),
+  );
 }
