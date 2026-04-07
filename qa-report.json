@@ -855,5 +855,23 @@
     ],
     "bugs_found": [],
     "fix_description": "No feature bug fix was needed. The project detail page worked end to end against real seeded data; I only regenerated stale Next route types and formatted `.current-feature.json` so `make check` could complete."
+  },
+  {
+    "feature_id": "feature-020",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 620 unit tests passed.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the first run exposed a stale Playwright auth bootstrap that still scraped Better Auth magic-link tokens from Postgres, so I updated `tests/e2e/auth.setup.ts` to use the existing `POST /api/test/create-session` helper and reran smoke successfully.",
+      "Ran full Playwright coverage with `npx playwright test`; the inbox auth setup and smoke spec passed, while the pre-existing unrelated `tests/e2e/command-palette.spec.ts` cases still fail because the command palette dialog never opens on `Meta+K`.",
+      "Logged into the clone via real Google OAuth with `TEST_ACCOUNT_EMAIL=jaeyunha0317@gmail.com`, opened `/inbox`, and verified the list renders real notifications with actor avatar/name, issue identifier, issue title, action copy, and relative timestamps.",
+      "Reset two live notifications to unread in Postgres, reloaded `/inbox`, and verified the sidebar Inbox badge plus the header unread count matched the API's unread total, and that clicking an unread row marked it read via `PATCH /api/notifications/[id]/read`, updated `notification.read_at` in Postgres, and reduced the visible unread count from 2 to 1.",
+      "Verified the `Filter` control reduces the list to unread notifications only, and the `Sort` control reorders rows by issue priority, moving the urgent duplicate notification above the low-priority comment notification.",
+      "Verified the right-hand detail panel follows the selected notification, shows the correct issue identifier/title plus type-specific copy, and that `Open issue` deep-links correctly to `/issue/QAX2-4`.",
+      "Exercised real notification creation end to end by creating issue `QAX2-39`, assigning it to the signed-in user, changing its workflow state, and posting a self-mention comment; `/inbox` then showed fresh `assigned`, `status_change`, and `mentioned` rows at the top of the list.",
+      "Captured QA evidence for the inbox page to `ralph/screenshots/qa/feature-020-attempt-1-inbox.png` and compared the overall split-pane structure against `ralph/screenshots/inspect/inbox.jpg` and `ralph/screenshots/inspect/inbox-detail.jpg`."
+    ],
+    "bugs_found": [],
+    "fix_description": "No feature-020 product bug required fixing. I repaired the stale Playwright auth setup so the required smoke coverage can authenticate reliably again, then verified the inbox feature end to end with real notifications and live API writes."
   }
 ]
