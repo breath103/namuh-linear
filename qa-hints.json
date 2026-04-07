@@ -435,5 +435,33 @@
       "URL routing — /my-issues redirects to /my-issues/assigned",
       "Visual comparison with Linear's actual My Issues layout"
     ]
+  },
+  {
+    "feature_id": "feature-030",
+    "tests_written": [
+      "CycleProgressBar renders percentage (0%, 40%, 100%)",
+      "CycleProgressBar shows issue count text",
+      "CycleRow renders cycle number as name when no custom name",
+      "CycleRow renders custom name when provided",
+      "CycleRow renders date range",
+      "CycleRow renders progress bar",
+      "CycleRow shows issue count",
+      "CycleSection renders section title",
+      "CycleSection renders multiple cycles",
+      "CycleSection does not render when empty",
+      "categorizeCycles categorizes current/upcoming/past",
+      "categorizeCycles returns null current when no active cycle",
+      "formatCycleDate formats date as short month + day"
+    ],
+    "needs_deeper_qa": [
+      "Create cycle form submission with real API",
+      "Cycle detail page with actual issues grouped by status",
+      "Auto-rollover behavior when cycle ends",
+      "Date edge cases (timezone differences, overlapping cycles)",
+      "Cycle deletion and issue unlinking",
+      "PATCH cycle update functionality",
+      "Empty state transitions when first cycle is created",
+      "Visual comparison with Linear's actual Cycles layout"
+    ]
   }
 ]

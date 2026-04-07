@@ -712,3 +712,63 @@ Date: 2026-04-07
 - Activity tab merges assigned + created issues (simplified from Linear's chronological activity)
 - Reused IssueRow, IssuesGroupHeader, FilterBar, and design system components
 - Display options are local state (not persisted to API like team display options)
+
+## Iteration 22 — feature-030: Cycles Page
+Date: 2026-04-07
+
+### What was built
+- Cycles API routes (CRUD):
+  - `GET /api/teams/[key]/cycles` — list all cycles with issue counts (total + completed)
+  - `POST /api/teams/[key]/cycles` — create new cycle with auto-incrementing number
+  - `GET /api/teams/[key]/cycles/[cycleId]` — cycle detail with issues grouped by workflow state
+  - `PATCH /api/teams/[key]/cycles/[cycleId]` — update cycle properties
+  - `DELETE /api/teams/[key]/cycles/[cycleId]` — delete cycle, unlink issues
+- Cycles page (`src/app/(app)/team/[key]/cycles/page.tsx`):
+  - Empty state with explanation text and "Create cycle" CTA
+  - Current/Upcoming/Past sections using date-based categorization
+  - Each cycle row: icon, name (or "Cycle N"), date range, progress bar
+  - Create cycle form: optional name, start/end dates, defaults to 2-week sprint
+  - "New cycle" button in header
+- Cycle detail page (`src/app/(app)/team/[key]/cycles/[cycleId]/page.tsx`):
+  - Back navigation breadcrumb to cycles list
+  - Cycle header with name, date range, progress bar
+  - Issues grouped by workflow status (reuses IssueRow + IssuesGroupHeader)
+  - Empty state when no issues in cycle
+  - Footer with issue count
+- Reusable components:
+  - `CycleProgressBar` — percentage + issue count display with colored bar
+  - `CycleRow` — individual cycle list item with icon, name, dates, progress
+  - `CycleSection` — grouped section (Current/Upcoming/Past) with title + count
+- Utility: `src/lib/cycle-utils.ts` — `categorizeCycles()` and `formatCycleDate()`
+
+### Test results
+- 16 unit tests passing (tests/cycles.test.tsx):
+  - 4 CycleProgressBar tests (0%, 40%, 100%, issue count text)
+  - 5 CycleRow tests (default name, custom name, dates, progress, count)
+  - 3 CycleSection tests (title, multiple cycles, empty array)
+  - 2 categorizeCycles tests (categorization, null current)
+  - 2 formatCycleDate tests (Apr 7, Jan 15)
+- 346 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/lib/cycle-utils.ts — new utility for cycle date categorization and formatting
+- src/components/cycle-progress-bar.tsx — new progress bar component
+- src/components/cycle-row.tsx — new cycle list row component
+- src/components/cycle-section.tsx — new cycle section grouping component
+- src/app/(app)/team/[key]/cycles/page.tsx — updated from empty state to full cycles page
+- src/app/(app)/team/[key]/cycles/[cycleId]/page.tsx — new cycle detail page
+- src/app/api/teams/[key]/cycles/route.ts — new API route (GET + POST)
+- src/app/api/teams/[key]/cycles/[cycleId]/route.ts — new API route (GET + PATCH + DELETE)
+- tests/cycles.test.tsx — new unit test file (16 tests)
+- prd.json — marked feature-030 build_pass: true
+- qa-hints.json — added feature-030 QA hints
+
+### Decisions
+- Used date-based categorization (current = now between start/end, upcoming = future, past = ended)
+- Cycle name defaults to "Cycle N" when no custom name is set
+- Create form defaults to 2-week sprint (today → today + 14 days)
+- Reused IssueRow and IssuesGroupHeader from issues feature for cycle detail view
+- Auto-increment cycle number per team
+- On cycle deletion, issues are unlinked (cycleId set to null) rather than deleted

@@ -1,0 +1,144 @@
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { cycle, issue, team, workflowState } from "@/lib/db/schema";
+import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { headers } from "next/headers";
+import { NextResponse } from "next/server";
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ key: string }> },
+) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { key } = await params;
+
+  const teams = await db
+    .select({ id: team.id, name: team.name, key: team.key })
+    .from(team)
+    .where(eq(team.key, key))
+    .limit(1);
+
+  if (teams.length === 0) {
+    return NextResponse.json({ error: "Team not found" }, { status: 404 });
+  }
+
+  const teamRecord = teams[0];
+
+  // Get all cycles for this team
+  const cycles = await db
+    .select()
+    .from(cycle)
+    .where(eq(cycle.teamId, teamRecord.id))
+    .orderBy(desc(cycle.startDate));
+
+  // Get issue counts per cycle (total and completed)
+  const completedStates = await db
+    .select({ id: workflowState.id })
+    .from(workflowState)
+    .where(
+      and(
+        eq(workflowState.teamId, teamRecord.id),
+        eq(workflowState.category, "completed"),
+      ),
+    );
+  const completedStateIds = completedStates.map((s) => s.id);
+
+  const cyclesWithCounts = await Promise.all(
+    cycles.map(async (c) => {
+      const totalResult = await db
+        .select({ value: count() })
+        .from(issue)
+        .where(eq(issue.cycleId, c.id));
+      const issueCount = totalResult[0]?.value ?? 0;
+
+      let completedIssueCount = 0;
+      if (completedStateIds.length > 0 && issueCount > 0) {
+        const completedResult = await db
+          .select({ value: count() })
+          .from(issue)
+          .where(
+            and(
+              eq(issue.cycleId, c.id),
+              sql`${issue.stateId} IN (${sql.join(
+                completedStateIds.map((id) => sql`${id}`),
+                sql`, `,
+              )})`,
+            ),
+          );
+        completedIssueCount = completedResult[0]?.value ?? 0;
+      }
+
+      return {
+        id: c.id,
+        name: c.name,
+        number: c.number,
+        teamId: c.teamId,
+        startDate: c.startDate,
+        endDate: c.endDate,
+        autoRollover: c.autoRollover,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        issueCount,
+        completedIssueCount,
+      };
+    }),
+  );
+
+  return NextResponse.json({
+    team: { id: teamRecord.id, name: teamRecord.name, key: teamRecord.key },
+    cycles: cyclesWithCounts,
+  });
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ key: string }> },
+) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { key } = await params;
+
+  const teams = await db
+    .select({ id: team.id })
+    .from(team)
+    .where(eq(team.key, key))
+    .limit(1);
+
+  if (teams.length === 0) {
+    return NextResponse.json({ error: "Team not found" }, { status: 404 });
+  }
+
+  const teamRecord = teams[0];
+  const body = await request.json();
+
+  // Get next cycle number
+  const lastCycle = await db
+    .select({ number: cycle.number })
+    .from(cycle)
+    .where(eq(cycle.teamId, teamRecord.id))
+    .orderBy(desc(cycle.number))
+    .limit(1);
+
+  const nextNumber = (lastCycle[0]?.number ?? 0) + 1;
+
+  const newCycle = await db
+    .insert(cycle)
+    .values({
+      name: body.name ?? null,
+      number: nextNumber,
+      teamId: teamRecord.id,
+      startDate: new Date(body.startDate),
+      endDate: new Date(body.endDate),
+      autoRollover: body.autoRollover ?? true,
+    })
+    .returning();
+
+  return NextResponse.json(newCycle[0], { status: 201 });
+}
