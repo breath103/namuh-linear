@@ -208,7 +208,7 @@ except:
     print('No qa-hints.json found.')
 " 2>/dev/null)
 
-  result=$(timeout 1200 codex exec --dangerously-bypass-approvals-and-sandbox \
+  result=$(timeout 1800 codex exec --dangerously-bypass-approvals-and-sandbox \
 "$(cat ralph/qa-prompt.md)
 
 == FEATURE TO TEST ==

@@ -15,12 +15,20 @@ describe("ProjectProperties", () => {
   const defaultProps = {
     status: "planned" as const,
     priority: "high" as const,
-    lead: null as { name: string; image?: string } | null,
-    members: [] as { name: string; image?: string }[],
+    lead: null as { id: string; name: string; image?: string | null } | null,
+    members: [] as { id: string; name: string; image?: string | null }[],
     startDate: null as string | null,
     targetDate: null as string | null,
-    teams: [] as { name: string; key: string }[],
-    labels: [] as { name: string; color: string }[],
+    teams: [] as { id: string; name: string; key: string }[],
+    labels: [] as { id: string; name: string; color: string }[],
+    slackChannel: null as string | null,
+    availableMembers: [] as {
+      id: string;
+      name: string;
+      image?: string | null;
+    }[],
+    availableTeams: [] as { id: string; name: string; key: string }[],
+    availableLabels: [] as { id: string; name: string; color: string }[],
   };
 
   it("renders status property", () => {
@@ -36,7 +44,12 @@ describe("ProjectProperties", () => {
   });
 
   it("renders lead when provided", () => {
-    render(<ProjectProperties {...defaultProps} lead={{ name: "Alice" }} />);
+    render(
+      <ProjectProperties
+        {...defaultProps}
+        lead={{ id: "user-1", name: "Alice" }}
+      />,
+    );
     expect(screen.getByText("Lead")).toBeDefined();
     expect(screen.getByText("Alice")).toBeDefined();
   });
@@ -50,7 +63,7 @@ describe("ProjectProperties", () => {
     render(
       <ProjectProperties
         {...defaultProps}
-        teams={[{ name: "Engineering", key: "ENG" }]}
+        teams={[{ id: "team-1", name: "Engineering", key: "ENG" }]}
       />,
     );
     expect(screen.getByText("Teams")).toBeDefined();
@@ -73,7 +86,7 @@ describe("ProjectProperties", () => {
     render(
       <ProjectProperties
         {...defaultProps}
-        labels={[{ name: "Frontend", color: "#ff0000" }]}
+        labels={[{ id: "label-1", name: "Frontend", color: "#ff0000" }]}
       />,
     );
     expect(screen.getByText("Labels")).toBeDefined();
@@ -83,6 +96,14 @@ describe("ProjectProperties", () => {
   it("shows 'Add label' when no labels", () => {
     render(<ProjectProperties {...defaultProps} />);
     expect(screen.getByText("Add label")).toBeDefined();
+  });
+
+  it("renders slack channel when provided", () => {
+    render(
+      <ProjectProperties {...defaultProps} slackChannel="#project-updates" />,
+    );
+    expect(screen.getByText("Slack")).toBeDefined();
+    expect(screen.getByText("#project-updates")).toBeDefined();
   });
 });
 
