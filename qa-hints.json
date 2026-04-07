@@ -219,5 +219,29 @@
       "Board with many columns — horizontal scroll",
       "Empty columns visibility toggle"
     ]
+  },
+  {
+    "feature_id": "feature-003",
+    "tests_written": [
+      "IssueProperties renders status with icon and name",
+      "IssueProperties renders priority with icon and label",
+      "IssueProperties renders assignee name and avatar",
+      "IssueProperties renders labels",
+      "IssueProperties shows 'No assignee' when null",
+      "IssueProperties shows 'Add to project' when null",
+      "IssueProperties renders project name with icon",
+      "IssueProperties renders all property labels",
+      "API route GET /api/issues/[id] returns full issue detail"
+    ],
+    "needs_deeper_qa": [
+      "E2E: navigate from issue list to issue detail page",
+      "Editable title (contenteditable) — not yet implemented",
+      "Rich text description editing — not yet implemented",
+      "Comment submission and real-time update",
+      "Sub-issues section — not yet implemented",
+      "Reactions on comments — not yet implemented",
+      "File attachments — not yet implemented",
+      "Visual comparison with Linear's actual issue detail layout"
+    ]
   }
 ]

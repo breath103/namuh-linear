@@ -380,3 +380,40 @@ Date: 2026-04-07
 - Drag & drop not implemented in this pass (will need a DnD library like @dnd-kit)
 - Empty completed/canceled columns hidden by default to match Linear's behavior
 - IssueCard is separate from IssueRow — different layout needs (card vs row)
+
+## Iteration 12 — feature-003: Issue Detail Page
+Date: 2026-04-07
+
+### What was built
+- API route `GET /api/issues/[id]` — fetches full issue detail by identifier or UUID, with state, assignee, creator, team, project, labels, and comments (all fetched in parallel)
+- IssueProperties component (`src/components/issue-properties.tsx`) — properties sidebar with Status, Priority, Assignee, Labels, Project rows
+- Issue detail page (`src/app/(app)/issue/[id]/page.tsx`) — full detail view:
+  - Header with identifier and team name
+  - Large title display
+  - Description area (plain text, placeholder for rich text)
+  - Properties sidebar (status, priority, assignee, labels, project)
+  - Activity feed with comments
+  - Comment composer textarea
+  - Created/Updated metadata
+
+### Test results
+- 10 unit tests passing (tests/issue-detail.test.tsx)
+  - 10 IssueProperties tests (status, priority, assignee, labels, project, property labels)
+- 219 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/app/api/issues/[id]/route.ts — new API route
+- src/components/issue-properties.tsx — new IssueProperties component
+- src/app/(app)/issue/[id]/page.tsx — new issue detail page
+- tests/issue-detail.test.tsx — new unit test file (10 tests)
+- prd.json — marked feature-003 build_pass: true
+- qa-hints.json — added feature-003 QA hints
+
+### Decisions
+- Used `/issue/[id]` URL pattern (matching Linear's actual URLs) rather than `/team/{key}/issue/{id}`
+- API supports lookup by identifier (ENG-45) or UUID
+- Related data fetched in parallel with Promise.all for performance
+- Description is plain text for now — rich text editing will be a future enhancement
+- Comment composer is a placeholder textarea — submission not wired up yet
