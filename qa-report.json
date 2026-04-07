@@ -185,5 +185,26 @@
     ],
     "bugs_found": [],
     "fix_description": "No fix needed in attempt 2. Re-verified the previously repaired Better Auth/Postgres setup and confirmed Google OAuth, account creation, session creation, persistence, and logout now work end-to-end."
+  },
+  {
+    "feature_id": "auth-002",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 541 unit tests passed after the auth fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the clone still loaded successfully on `http://localhost:3015`.",
+      "Ran `make check`; typecheck and Biome both passed.",
+      "Ran full `make test-e2e` because auth is shared code; smoke passed and the only failing specs were the pre-existing unrelated command-palette E2E tests.",
+      "Verified the login page renders in Ever with both `Continue with Google` and `Continue with Email`, then drilled into the email step and confirmed the email input flow is available.",
+      "Posted directly to `POST /api/auth/sign-in/magic-link` and confirmed Better Auth now returns `200 {\"status\":true}` instead of a `500`.",
+      "Queried Postgres and confirmed magic-link verification rows now store real 6-digit numeric identifiers for the requested email address.",
+      "Ran a browser-level Playwright probe for a fresh simulator email address and verified the UI transitions to the code-entry screen; screenshot saved to `ralph/screenshots/qa/auth-002-attempt-1-code-entry.png`.",
+      "Completed the full browser flow by entering the stored 6-digit code, verified redirect to `/create-workspace`, confirmed `/api/auth/get-session` returned a live Better Auth session plus a newly created verified user, and saved the post-login state to `ralph/screenshots/qa/auth-002-attempt-1-post-login.png`.",
+      "Reloaded the authenticated page and confirmed the session persisted across refresh.",
+      "Verified sign-out with `POST /api/auth/sign-out` using the session cookie, confirmed `{\"success\":true}` plus cleared cookies, and confirmed a logged-out request to `/team/ABC/all` redirects to `/login?callbackUrl=%2Fteam%2FABC%2Fall`.",
+      "Verified the invalid-code edge case in a browser probe: entering `000000` redirects back to `/login?error=INVALID_TOKEN` and the page displays the mapped error message."
+    ],
+    "bugs_found": [],
+    "fix_description": "Implemented real 6-digit Better Auth magic-link tokens, added the missing code-entry UI and invalid-code handling on `/login`, and added a non-production SES preview fallback so local magic-link auth keeps working when AWS credentials are unavailable."
   }
 ]

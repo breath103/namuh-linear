@@ -87,6 +87,45 @@ describe("Auth configuration", () => {
     expect(typeof mlPlugin?.options?.sendMagicLink).toBe("function");
   });
 
+  it("generates a numeric 6-digit magic link token", async () => {
+    await import("@/lib/auth");
+    const plugins = capturedConfig?.plugins as Array<{
+      id: string;
+      options: { generateToken: () => Promise<string> };
+    }>;
+    const mlPlugin = plugins?.find((p) => p.id === "magic-link");
+    const token = await mlPlugin?.options?.generateToken();
+    expect(token).toMatch(/^\d{6}$/);
+  });
+
+  it("uses the generated token as the emailed sign-in code", async () => {
+    await import("@/lib/auth");
+    const plugins = capturedConfig?.plugins as Array<{
+      id: string;
+      options: {
+        sendMagicLink: (input: {
+          email: string;
+          token: string;
+          url: string;
+        }) => Promise<void>;
+      };
+    }>;
+    const mlPlugin = plugins?.find((p) => p.id === "magic-link");
+    const { sendMagicLinkEmail } = await import("@/lib/email");
+
+    await mlPlugin?.options?.sendMagicLink({
+      email: "hello@example.com",
+      token: "123456",
+      url: "http://localhost:3015/api/auth/magic-link/verify?token=123456",
+    });
+
+    expect(sendMagicLinkEmail).toHaveBeenCalledWith(
+      "hello@example.com",
+      "123456",
+      "http://localhost:3015/api/auth/magic-link/verify?token=123456",
+    );
+  });
+
   it("uses drizzle adapter with pg provider", async () => {
     const { drizzleAdapter } = await import("better-auth/adapters/drizzle");
     await import("@/lib/auth");

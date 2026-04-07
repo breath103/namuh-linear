@@ -1,7 +1,12 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 
 const region = process.env.AWS_REGION ?? "us-east-1";
 const senderEmail = process.env.SENDER_EMAIL ?? "noreply@foreverbrowsing.com";
+const emailPreviewPath =
+  process.env.EMAIL_PREVIEW_PATH ??
+  path.join(process.cwd(), ".omx", "email-previews", "latest.json");
 
 export const ses = new SESv2Client({ region });
 
@@ -10,6 +15,28 @@ interface EmailOptions {
   subject: string;
   html: string;
   text?: string;
+}
+
+async function writeEmailPreview(
+  options: EmailOptions,
+  error: unknown,
+): Promise<void> {
+  await mkdir(path.dirname(emailPreviewPath), { recursive: true });
+  await writeFile(
+    emailPreviewPath,
+    JSON.stringify(
+      {
+        provider: "ses-preview",
+        from: senderEmail,
+        ...options,
+        region,
+        createdAt: new Date().toISOString(),
+        error: error instanceof Error ? error.message : String(error),
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 /**
@@ -32,7 +59,15 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
     },
   });
 
-  await ses.send(command);
+  try {
+    await ses.send(command);
+  } catch (error) {
+    if (process.env.NODE_ENV === "production") {
+      throw error;
+    }
+
+    await writeEmailPreview(options, error);
+  }
 }
 
 /**

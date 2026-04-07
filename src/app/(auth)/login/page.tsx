@@ -1,15 +1,32 @@
 "use client";
 
 import { signIn } from "@/lib/auth-client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-type LoginStep = "choose" | "email-input" | "email-sent";
+type LoginStep = "choose" | "email-input" | "email-code";
+
+const authErrorMessages: Record<string, string> = {
+  INVALID_TOKEN:
+    "That sign-in code is invalid. Request a new email and try again.",
+  EXPIRED_TOKEN: "That sign-in code expired. Request a new email to continue.",
+  ATTEMPTS_EXCEEDED:
+    "That sign-in code has already been used. Request a new email to continue.",
+};
 
 export default function LoginPage() {
   const [step, setStep] = useState<LoginStep>("choose");
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("error");
+    if (authError && authErrorMessages[authError]) {
+      setError(authErrorMessages[authError]);
+    }
+  }, []);
 
   async function handleGoogleLogin() {
     setLoading(true);
@@ -25,13 +42,37 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await signIn.magicLink({ email, callbackURL: "/" });
-      setStep("email-sent");
+      await signIn.magicLink({
+        email,
+        callbackURL: "/",
+        errorCallbackURL: "/login",
+      });
+      setCode("");
+      setStep("email-code");
     } catch {
       setError("Failed to send magic link. Please try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleCodeSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    const normalizedCode = code.replace(/\D/g, "").slice(0, 6);
+    if (normalizedCode.length !== 6) {
+      setError("Enter the 6-digit code from your email.");
+      return;
+    }
+
+    const verifyUrl = new URL(
+      "/api/auth/magic-link/verify",
+      window.location.origin,
+    );
+    verifyUrl.searchParams.set("token", normalizedCode);
+    verifyUrl.searchParams.set("callbackURL", "/");
+    verifyUrl.searchParams.set("errorCallbackURL", "/login");
+    window.location.assign(verifyUrl.toString());
   }
 
   return (
@@ -173,6 +214,7 @@ export default function LoginPage() {
             onClick={() => {
               setStep("choose");
               setError("");
+              setCode("");
             }}
             className="w-full pt-1 text-center text-[13px] text-[#6b6f76] transition-colors hover:text-white"
           >
@@ -182,7 +224,7 @@ export default function LoginPage() {
         </form>
       )}
 
-      {step === "email-sent" && (
+      {step === "email-code" && (
         <div className="space-y-5 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#26262a] bg-[#18181b]">
             <svg
@@ -206,15 +248,41 @@ export default function LoginPage() {
               Check your email
             </h2>
             <p className="mt-1.5 text-[13px] text-[#6b6f76]">
-              We sent a sign-in link to{" "}
+              We sent a sign-in link and 6-digit code to{" "}
               <span className="text-white">{email}</span>
             </p>
           </div>
+          <form onSubmit={handleCodeSubmit} className="space-y-3 text-left">
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                setError("");
+              }}
+              placeholder="Enter 6-digit code"
+              maxLength={6}
+              className="w-full rounded-md border border-[#26262a] bg-[#18181b] px-3.5 py-[10px] text-center text-[15px] tracking-[0.35em] text-white placeholder-[#555] outline-none transition-colors focus:border-[#5E6AD2]"
+            />
+            <button
+              type="submit"
+              disabled={code.length !== 6}
+              className="w-full rounded-md bg-[#5E6AD2] px-4 py-[10px] text-[13px] font-medium text-white transition-colors hover:bg-[#4F5ABF] disabled:opacity-50"
+            >
+              Continue with code
+            </button>
+            {error && (
+              <p className="text-center text-sm text-red-400">{error}</p>
+            )}
+          </form>
           <button
             type="button"
             onClick={() => {
               setStep("choose");
               setEmail("");
+              setCode("");
               setError("");
             }}
             className="text-[13px] text-[#6b6f76] transition-colors hover:text-white"

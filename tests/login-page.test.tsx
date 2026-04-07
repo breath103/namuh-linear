@@ -11,6 +11,14 @@ vi.mock("@/lib/auth-client", () => ({
   authClient: {},
 }));
 
+const assignMock = vi.fn();
+
+vi.stubGlobal("location", {
+  ...window.location,
+  assign: assignMock,
+  search: "",
+});
+
 import LoginPage from "@/app/(auth)/login/page";
 import { signIn } from "@/lib/auth-client";
 
@@ -18,6 +26,7 @@ describe("Login page", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    assignMock.mockReset();
   });
 
   it("renders the login title", () => {
@@ -78,10 +87,12 @@ describe("Login page", () => {
     await vi.waitFor(() => {
       expect(screen.getByText("Check your email")).toBeDefined();
     });
+    expect(screen.getByPlaceholderText("Enter 6-digit code")).toBeDefined();
 
     expect(signIn.magicLink).toHaveBeenCalledWith({
       email: "test@example.com",
       callbackURL: "/",
+      errorCallbackURL: "/login",
     });
   });
 
@@ -135,5 +146,28 @@ describe("Login page", () => {
     await vi.waitFor(() => {
       expect(screen.getByText("hello@linear.app")).toBeDefined();
     });
+  });
+
+  it("navigates to magic-link verification when a valid code is submitted", async () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText("Continue with Email"));
+
+    const emailInput = screen.getByPlaceholderText(
+      "Enter your email address...",
+    );
+    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
+    fireEvent.submit(emailInput.closest("form") as HTMLFormElement);
+
+    await vi.waitFor(() => {
+      expect(screen.getByPlaceholderText("Enter 6-digit code")).toBeDefined();
+    });
+
+    const codeInput = screen.getByPlaceholderText("Enter 6-digit code");
+    fireEvent.change(codeInput, { target: { value: "123456" } });
+    fireEvent.submit(codeInput.closest("form") as HTMLFormElement);
+
+    expect(assignMock).toHaveBeenCalledWith(
+      "http://localhost:3000/api/auth/magic-link/verify?token=123456&callbackURL=%2F&errorCallbackURL=%2Flogin",
+    );
   });
 });

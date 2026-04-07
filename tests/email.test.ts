@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sendMock = vi.fn<(cmd: unknown) => Promise<unknown>>(() =>
@@ -18,12 +21,16 @@ function getLastSentCommand(): Record<string, unknown> {
 
 describe("Email utilities", () => {
   let emailModule: typeof import("@/lib/email");
+  let previewDir: string;
 
   beforeEach(async () => {
     sendMock.mockClear();
     vi.resetModules();
     vi.stubEnv("AWS_REGION", "us-east-1");
     vi.stubEnv("SENDER_EMAIL", "test@example.com");
+    vi.stubEnv("NODE_ENV", "test");
+    previewDir = fs.mkdtempSync(path.join(os.tmpdir(), "email-preview-"));
+    vi.stubEnv("EMAIL_PREVIEW_PATH", path.join(previewDir, "latest.json"));
     emailModule = await import("@/lib/email");
   });
 
@@ -106,6 +113,48 @@ describe("Email utilities", () => {
     expect(cmd.Content.Simple.Body.Html.Data).toContain(
       "https://app.example.com/verify?token=abc",
     );
+  });
+
+  it("writes a local preview instead of failing in non-production when SES send errors", async () => {
+    sendMock.mockRejectedValueOnce(new Error("session expired"));
+
+    await expect(
+      emailModule.sendEmail({
+        to: "user@example.com",
+        subject: "Preview me",
+        html: "<p>Hello</p>",
+        text: "Hello",
+      }),
+    ).resolves.toBeUndefined();
+
+    const preview = JSON.parse(
+      fs.readFileSync(path.join(previewDir, "latest.json"), "utf8"),
+    ) as {
+      to: string;
+      subject: string;
+      error: string;
+      provider: string;
+    };
+
+    expect(preview.provider).toBe("ses-preview");
+    expect(preview.to).toBe("user@example.com");
+    expect(preview.subject).toBe("Preview me");
+    expect(preview.error).toContain("session expired");
+  });
+
+  it("still throws SES errors in production", async () => {
+    sendMock.mockRejectedValueOnce(new Error("production send failed"));
+    vi.stubEnv("NODE_ENV", "production");
+    vi.resetModules();
+    emailModule = await import("@/lib/email");
+
+    await expect(
+      emailModule.sendEmail({
+        to: "user@example.com",
+        subject: "Must fail",
+        html: "<p>Hello</p>",
+      }),
+    ).rejects.toThrow("production send failed");
   });
 
   it("sendInvitationEmail includes workspace name and inviter", async () => {
