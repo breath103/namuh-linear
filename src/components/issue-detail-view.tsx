@@ -1,0 +1,654 @@
+"use client";
+
+import { IssueProperties } from "@/components/issue-properties";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+interface IssueReaction {
+  emoji: string;
+  count: number;
+  reacted: boolean;
+}
+
+interface IssueComment {
+  id: string;
+  body: string;
+  user: { name: string; image: string | null };
+  createdAt: string;
+  reactions: IssueReaction[];
+}
+
+interface IssueSubIssue {
+  id: string;
+  identifier: string;
+  title: string;
+  priority: "none" | "urgent" | "high" | "medium" | "low";
+  state: {
+    name: string;
+    category:
+      | "triage"
+      | "backlog"
+      | "unstarted"
+      | "started"
+      | "completed"
+      | "canceled";
+    color: string;
+  } | null;
+}
+
+interface IssueDetail {
+  id: string;
+  identifier: string;
+  title: string;
+  description: string | null;
+  priority: "none" | "urgent" | "high" | "medium" | "low";
+  state: {
+    id: string;
+    name: string;
+    category:
+      | "triage"
+      | "backlog"
+      | "unstarted"
+      | "started"
+      | "completed"
+      | "canceled";
+    color: string;
+  } | null;
+  assignee: { name: string; image: string | null } | null;
+  creator: { name: string; image: string | null } | null;
+  team: { id: string; name: string; key: string };
+  project: { id: string; name: string; icon: string } | null;
+  labels: { name: string; color: string }[];
+  comments: IssueComment[];
+  subIssues: IssueSubIssue[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+const QUICK_REACTIONS = ["👍", "🚀", "👀", "❤️"];
+
+function formatFullDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+function CommentReactions({
+  comment,
+  disabled,
+  onToggle,
+}: {
+  comment: IssueComment;
+  disabled: boolean;
+  onToggle: (commentId: string, emoji: string) => Promise<void>;
+}) {
+  const availableQuickReactions = QUICK_REACTIONS.filter(
+    (emoji) => !comment.reactions.some((reaction) => reaction.emoji === emoji),
+  );
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {comment.reactions.map((reaction) => (
+        <button
+          key={`${comment.id}-${reaction.emoji}`}
+          type="button"
+          disabled={disabled}
+          onClick={() => void onToggle(comment.id, reaction.emoji)}
+          className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[12px] transition-colors ${
+            reaction.reacted
+              ? "border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-accent)_18%,transparent)] text-[var(--color-text-primary)]"
+              : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]"
+          }`}
+        >
+          <span>{reaction.emoji}</span>
+          <span>{reaction.count}</span>
+        </button>
+      ))}
+      {availableQuickReactions.map((emoji) => (
+        <button
+          key={`${comment.id}-add-${emoji}`}
+          type="button"
+          disabled={disabled}
+          onClick={() => void onToggle(comment.id, emoji)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] text-[14px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+          aria-label={`React with ${emoji}`}
+        >
+          {emoji}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function IssueDetailView({ issueId }: { issueId: string }) {
+  const [issue, setIssue] = useState<IssueDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [savingField, setSavingField] = useState<
+    "title" | "description" | null
+  >(null);
+  const [commentBody, setCommentBody] = useState("");
+  const [subIssueTitle, setSubIssueTitle] = useState("");
+  const [showSubIssueForm, setShowSubIssueForm] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [submittingSubIssue, setSubmittingSubIssue] = useState(false);
+  const [reactingCommentId, setReactingCommentId] = useState<string | null>(
+    null,
+  );
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const descriptionRef = useRef<HTMLDivElement>(null);
+
+  const fetchIssue = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/issues/${issueId}`);
+      if (res.ok) {
+        const json = (await res.json()) as IssueDetail;
+        setIssue(json);
+        setDescriptionDraft(json.description ?? "");
+      } else {
+        setIssue(null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [issueId]);
+
+  useEffect(() => {
+    void fetchIssue();
+  }, [fetchIssue]);
+
+  useEffect(() => {
+    if (!issue) return;
+
+    if (titleRef.current && document.activeElement !== titleRef.current) {
+      titleRef.current.textContent = issue.title;
+    }
+
+    if (
+      descriptionRef.current &&
+      document.activeElement !== descriptionRef.current
+    ) {
+      descriptionRef.current.textContent = issue.description ?? "";
+      setDescriptionDraft(issue.description ?? "");
+    }
+  }, [issue]);
+
+  async function patchIssue(
+    payload: Partial<Pick<IssueDetail, "title" | "description">>,
+    field: "title" | "description",
+  ) {
+    if (!issue) return;
+
+    setSavingField(field);
+    try {
+      const res = await fetch(`/api/issues/${issue.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to update issue ${field}`);
+      }
+
+      const updated = (await res.json()) as Partial<IssueDetail>;
+      setIssue((current) =>
+        current
+          ? {
+              ...current,
+              ...payload,
+              title: updated.title ?? payload.title ?? current.title,
+              description:
+                updated.description ??
+                (payload.description === undefined
+                  ? current.description
+                  : payload.description),
+              updatedAt: updated.updatedAt ?? current.updatedAt,
+            }
+          : current,
+      );
+    } finally {
+      setSavingField(null);
+    }
+  }
+
+  async function handleTitleBlur() {
+    if (!issue || !titleRef.current) return;
+
+    const nextTitle = titleRef.current.textContent?.trim() ?? "";
+    if (!nextTitle) {
+      titleRef.current.textContent = issue.title;
+      return;
+    }
+
+    if (nextTitle !== issue.title) {
+      await patchIssue({ title: nextTitle }, "title");
+    }
+  }
+
+  async function handleDescriptionBlur() {
+    if (!issue || !descriptionRef.current) return;
+
+    const nextDescription = descriptionRef.current.textContent?.trim() ?? "";
+    const normalized = nextDescription.length > 0 ? nextDescription : null;
+
+    if (normalized !== issue.description) {
+      await patchIssue({ description: normalized }, "description");
+    }
+  }
+
+  async function handleCommentSubmit() {
+    if (!issue || !commentBody.trim() || submittingComment) return;
+
+    setSubmittingComment(true);
+    try {
+      const res = await fetch(`/api/issues/${issue.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: commentBody.trim() }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to create comment");
+      }
+
+      const createdComment = (await res.json()) as IssueComment;
+      setIssue((current) =>
+        current
+          ? {
+              ...current,
+              comments: [...current.comments, createdComment],
+            }
+          : current,
+      );
+      setCommentBody("");
+    } finally {
+      setSubmittingComment(false);
+    }
+  }
+
+  async function handleReactionToggle(commentId: string, emoji: string) {
+    if (reactingCommentId) return;
+
+    setReactingCommentId(commentId);
+    try {
+      const res = await fetch(`/api/comments/${commentId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update reaction");
+      }
+
+      const nextReactions = (await res.json()) as IssueReaction[];
+      setIssue((current) =>
+        current
+          ? {
+              ...current,
+              comments: current.comments.map((comment) =>
+                comment.id === commentId
+                  ? { ...comment, reactions: nextReactions }
+                  : comment,
+              ),
+            }
+          : current,
+      );
+    } finally {
+      setReactingCommentId(null);
+    }
+  }
+
+  async function handleSubIssueSubmit() {
+    if (!issue || !subIssueTitle.trim() || submittingSubIssue) return;
+
+    setSubmittingSubIssue(true);
+    try {
+      const res = await fetch("/api/issues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: subIssueTitle.trim(),
+          teamId: issue.team.id,
+          stateId: issue.state?.id,
+          parentIssueId: issue.id,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to create sub-issue");
+      }
+
+      setSubIssueTitle("");
+      setShowSubIssueForm(false);
+      await fetchIssue();
+    } finally {
+      setSubmittingSubIssue(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!issue) {
+    return (
+      <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
+        Issue not found
+      </div>
+    );
+  }
+
+  const detailHref = `/team/${issue.team.key}/issue/${issue.id}`;
+
+  return (
+    <div className="flex h-full">
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-2.5">
+          <div className="flex items-center gap-2 text-[13px] text-[var(--color-text-secondary)]">
+            <Link
+              href={`/team/${issue.team.key}/all`}
+              className="transition-colors hover:text-[var(--color-text-primary)]"
+            >
+              {issue.team.name}
+            </Link>
+            <span>/</span>
+            <span>{issue.identifier}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href={detailHref}
+              className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+            >
+              Team route
+            </Link>
+          </div>
+        </div>
+
+        <div className="px-12 pt-10 pb-4">
+          <div
+            ref={titleRef}
+            contentEditable
+            suppressContentEditableWarning
+            onBlur={() => void handleTitleBlur()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.currentTarget.textContent = issue.title;
+                event.currentTarget.blur();
+              }
+            }}
+            className="min-h-[34px] rounded-md text-[32px] font-semibold leading-tight text-[var(--color-text-primary)] outline-none transition-shadow focus:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]"
+            aria-label="Issue title"
+          >
+            {issue.title}
+          </div>
+          <div className="mt-2 text-[12px] text-[var(--color-text-secondary)]">
+            {savingField === "title"
+              ? "Saving title..."
+              : `Updated ${formatFullDate(issue.updatedAt)}`}
+          </div>
+        </div>
+
+        <div className="flex-1 px-12 pb-8">
+          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+            <div className="mb-2 text-[12px] font-medium uppercase tracking-wide text-[var(--color-text-tertiary)]">
+              Description
+            </div>
+            <div className="relative">
+              {!descriptionFocused && descriptionDraft.trim().length === 0 && (
+                <span className="pointer-events-none absolute left-0 top-0 text-[15px] text-[var(--color-text-secondary)]">
+                  Add a description...
+                </span>
+              )}
+              <div
+                ref={descriptionRef}
+                contentEditable
+                suppressContentEditableWarning
+                onFocus={() => setDescriptionFocused(true)}
+                onInput={(event) =>
+                  setDescriptionDraft(event.currentTarget.textContent ?? "")
+                }
+                onBlur={() => {
+                  setDescriptionFocused(false);
+                  void handleDescriptionBlur();
+                }}
+                className="min-h-[120px] whitespace-pre-wrap rounded-md text-[15px] leading-relaxed text-[var(--color-text-primary)] outline-none transition-shadow focus:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]"
+                aria-label="Issue description"
+              >
+                {issue.description ?? ""}
+              </div>
+            </div>
+            <div className="mt-3 text-[12px] text-[var(--color-text-secondary)]">
+              {savingField === "description"
+                ? "Saving description..."
+                : "Edit inline and click away to save."}
+            </div>
+          </div>
+
+          <div className="mt-8 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-[13px] font-medium text-[var(--color-text-secondary)]">
+                Sub-issues
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowSubIssueForm((current) => !current)}
+                className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+              >
+                {showSubIssueForm ? "Cancel" : "Create sub-issue"}
+              </button>
+            </div>
+
+            {showSubIssueForm && (
+              <div className="mb-4 flex gap-2">
+                <input
+                  type="text"
+                  value={subIssueTitle}
+                  onChange={(event) => setSubIssueTitle(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handleSubIssueSubmit();
+                    }
+                  }}
+                  placeholder="Sub-issue title"
+                  className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-content-bg)] px-3 py-2 text-[13px] text-[var(--color-text-primary)] outline-none transition-shadow focus:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]"
+                />
+                <button
+                  type="button"
+                  disabled={submittingSubIssue || !subIssueTitle.trim()}
+                  onClick={() => void handleSubIssueSubmit()}
+                  className="rounded-md bg-[var(--color-accent)] px-3 py-2 text-[12px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submittingSubIssue ? "Creating..." : "Create"}
+                </button>
+              </div>
+            )}
+
+            {issue.subIssues.length > 0 ? (
+              <div className="space-y-2">
+                {issue.subIssues.map((subIssue) => (
+                  <Link
+                    key={subIssue.id}
+                    href={`/team/${issue.team.key}/issue/${subIssue.id}`}
+                    className="flex items-center justify-between rounded-lg border border-[var(--color-border)] px-3 py-2 text-[13px] transition-colors hover:bg-[var(--color-surface-hover)]"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[12px] text-[var(--color-text-secondary)]">
+                        {subIssue.identifier}
+                      </div>
+                      <div className="truncate text-[var(--color-text-primary)]">
+                        {subIssue.title}
+                      </div>
+                    </div>
+                    <div className="text-[12px] text-[var(--color-text-secondary)]">
+                      {subIssue.state?.name ?? "No status"}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[13px] text-[var(--color-text-secondary)]">
+                No sub-issues yet
+              </p>
+            )}
+          </div>
+
+          <div className="mt-8 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+            <h2 className="mb-4 text-[13px] font-medium text-[var(--color-text-secondary)]">
+              Activity
+            </h2>
+
+            {issue.comments.length > 0 ? (
+              <div className="space-y-5">
+                {issue.comments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    className="rounded-lg border border-[var(--color-border)] px-4 py-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] font-medium text-white">
+                        {comment.user.name?.[0]?.toUpperCase() ?? "?"}
+                      </div>
+                      <div>
+                        <div className="text-[13px] font-medium text-[var(--color-text-primary)]">
+                          {comment.user.name}
+                        </div>
+                        <div className="text-[12px] text-[var(--color-text-secondary)]">
+                          {formatFullDate(comment.createdAt)}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--color-text-primary)]">
+                      {comment.body}
+                    </p>
+                    <CommentReactions
+                      comment={comment}
+                      disabled={reactingCommentId === comment.id}
+                      onToggle={handleReactionToggle}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[13px] text-[var(--color-text-secondary)]">
+                No activity yet
+              </p>
+            )}
+
+            <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] px-4 py-3">
+              <textarea
+                placeholder="Leave a comment..."
+                value={commentBody}
+                onChange={(event) => setCommentBody(event.target.value)}
+                onKeyDown={(event) => {
+                  if (
+                    (event.metaKey || event.ctrlKey) &&
+                    event.key === "Enter"
+                  ) {
+                    event.preventDefault();
+                    void handleCommentSubmit();
+                  }
+                }}
+                className="w-full resize-none bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] focus:outline-none"
+                rows={4}
+              />
+              <div className="mt-3 flex items-center justify-between">
+                <div className="text-[12px] text-[var(--color-text-secondary)]">
+                  Send with Cmd/Ctrl + Enter
+                </div>
+                <button
+                  type="button"
+                  disabled={submittingComment || !commentBody.trim()}
+                  onClick={() => void handleCommentSubmit()}
+                  className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-[12px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submittingComment ? "Posting..." : "Comment"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="w-[300px] shrink-0 border-l border-[var(--color-border)] bg-[var(--color-sidebar-bg)] p-4">
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] p-4">
+          <div className="mb-3 text-[12px] font-medium uppercase tracking-wide text-[var(--color-text-tertiary)]">
+            Properties
+          </div>
+          {issue.state && (
+            <IssueProperties
+              status={{
+                name: issue.state.name,
+                category: issue.state.category,
+                color: issue.state.color,
+              }}
+              priority={issue.priority}
+              assignee={issue.assignee}
+              labels={issue.labels.map((label, index) => ({
+                id: `${label.name}-${index}`,
+                name: label.name,
+                color: label.color,
+              }))}
+              project={issue.project}
+            />
+          )}
+        </div>
+
+        <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] p-4">
+          <div className="space-y-2 text-[12px]">
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--color-text-secondary)]">
+                Created
+              </span>
+              <span className="text-[var(--color-text-primary)]">
+                {formatFullDate(issue.createdAt)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--color-text-secondary)]">
+                Updated
+              </span>
+              <span className="text-[var(--color-text-primary)]">
+                {formatFullDate(issue.updatedAt)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--color-text-secondary)]">
+                Creator
+              </span>
+              <span className="max-w-[140px] truncate text-[var(--color-text-primary)]">
+                {issue.creator?.name ?? "Unknown"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

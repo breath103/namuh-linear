@@ -221,7 +221,9 @@ describe("Empty state pages", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Roadmap")).toBeDefined();
-      expect(container.querySelector("a[href='/issue/issue-1']")).toBeTruthy();
+      expect(
+        container.querySelector("a[href='/team/ENG/issue/issue-1']"),
+      ).toBeTruthy();
     });
   });
 

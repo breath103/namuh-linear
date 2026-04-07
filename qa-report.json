@@ -599,5 +599,58 @@
       }
     ],
     "fix_description": "Implemented board drag-and-drop for issue cards, added the missing authenticated `PATCH /api/issues/[id]` state-update path, highlighted column drop targets, and added a regression test covering a board move. `qa_pass` is now true for feature-002; the remaining E2E failures are the pre-existing unrelated command-palette specs."
+  },
+  {
+    "feature_id": "feature-003",
+    "attempt": 1,
+    "status": "partial",
+    "tested_steps": [
+      "Ran `make test`; all 590 unit tests passed before and after the feature-003 fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the app still loaded successfully on `http://localhost:3015`.",
+      "Ran `make check`; typecheck and Biome both passed after the issue-detail fixes.",
+      "Ran full `make test-e2e` because the fix touched shared routing/UI/API code; smoke passed and the only failing specs were the pre-existing unrelated `tests/e2e/command-palette.spec.ts` cases where the command palette dialog never opens.",
+      "Used the live authenticated Ever session on `/team/QAX2/all` and verified issue-row navigation now opens the team-scoped detail route `/team/QAX2/issue/5f88d6ed-28cf-4309-9f1f-c9dc682450c6` instead of the old global route.",
+      "Verified the detail page now renders editable title and description surfaces, the properties sidebar, the new sub-issues section, activity feed, and comment composer; saved screenshots to `ralph/screenshots/qa/feature-003-attempt-1-qax2-list.jpg`, `ralph/screenshots/qa/feature-003-attempt-1-qax2-detail.jpg`, and `ralph/screenshots/qa/feature-003-attempt-1-final-detail.jpg`.",
+      "Verified the live backend paths with the signed-in browser session and Postgres: `PATCH /api/issues/:id` persisted a new title and description for `QAX2-2`, `POST /api/issues/:id/comments` created a real comment, `POST /api/comments/:id/reactions` toggled a 👍 reaction, and `POST /api/issues` with `parentIssueId` created sub-issue `QAX2-25`.",
+      "Queried Postgres directly and confirmed the repaired issue-detail record now has `title='Feature 003 QA edited title'`, `description='Feature 003 QA edited description'`, `comment_count=1`, `subissue_count=1`, and `reaction_count=1` for `QAX2-2`."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "The issue detail route and list navigation did not match the PRD team-scoped URL shape.",
+        "expected": "Selecting an issue from `/team/{key}/all` should open `/team/{key}/issue/{id}`.",
+        "actual": "Before the fix, the list linked to `/issue/{id}` and there was no team-scoped issue-detail route.",
+        "reproduction": "1. Open `http://localhost:3015/team/QAX2/all`.\n2. Click any issue row.\n3. Observe that the pre-fix app navigates to `/issue/{id}` instead of `/team/QAX2/issue/{id}`."
+      },
+      {
+        "severity": "major",
+        "description": "The issue detail page lacked working comment submission, reactions, and a sub-issues section.",
+        "expected": "Users should be able to leave a comment, react to comments, and view/create sub-issues from the detail page.",
+        "actual": "Before the fix, the page showed a dead comment textarea, had no reaction controls, and rendered no sub-issues UI.",
+        "reproduction": "1. Open any issue detail page.\n2. Attempt to submit a comment, add a reaction, or create a sub-issue.\n3. Observe that the pre-fix page offers no working path for any of those actions."
+      },
+      {
+        "severity": "major",
+        "description": "Attachments are still not implemented on the comment composer.",
+        "expected": "Per the PRD, the issue detail comment composer should support file attachments.",
+        "actual": "The repaired page still has no attachment button, upload flow, or persisted attachment metadata on comments.",
+        "reproduction": "1. Open `/team/QAX2/issue/5f88d6ed-28cf-4309-9f1f-c9dc682450c6`.\n2. Inspect the comment composer controls.\n3. Observe there is no attachment affordance or upload path."
+      },
+      {
+        "severity": "major",
+        "description": "The description editor is still plain text rather than a real rich-text editor.",
+        "expected": "The description area should provide a richer editing experience comparable to Linear's issue detail editor.",
+        "actual": "The repaired page uses a bare contenteditable plain-text surface with no formatting controls or rich-text rendering model.",
+        "reproduction": "1. Open the issue detail page.\n2. Focus the description editor.\n3. Observe that there are no formatting controls and no rich-text structure beyond plain text."
+      },
+      {
+        "severity": "cosmetic",
+        "description": "The issue detail layout still diverges noticeably from Linear's reference screen.",
+        "expected": "The overall detail view should be visually close to Linear's dark, full-width issue-detail layout and action chrome.",
+        "actual": "Compared with `ralph/screenshots/inspect/issue-detail.jpg`, the clone still renders a much lighter, more boxed layout and lacks the top-right action cluster from the reference screen.",
+        "reproduction": "1. Compare `ralph/screenshots/qa/feature-003-attempt-1-final-detail.jpg` with `ralph/screenshots/inspect/issue-detail.jpg`.\n2. Observe the remaining layout and chrome differences."
+      }
+    ],
+    "fix_description": "Fixed the team-scoped issue-detail route, wired `/team/{key}/all` rows to it, implemented authenticated `PATCH /api/issues/[id]` title/description editing, added real comment creation, reaction toggling, and sub-issue creation/display, and verified all three against the live backend. `qa_pass` remains false because attachments are still missing, the description editor is still plain text rather than real rich text, and the layout still diverges visibly from Linear."
   }
 ]

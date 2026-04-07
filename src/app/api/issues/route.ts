@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     priority,
     assigneeId,
     projectId,
+    parentIssueId,
   } = body;
 
   if (!title || !teamId) {
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
       priority: priority || "none",
       assigneeId: assigneeId || null,
       projectId: projectId || null,
+      parentIssueId: parentIssueId || null,
     })
     .returning();
 

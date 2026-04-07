@@ -6,11 +6,12 @@ import {
   issueLabel,
   label,
   project,
+  reaction,
   team,
   user,
   workflowState,
 } from "@/lib/db/schema";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -97,6 +98,7 @@ export async function GET(
     projectRows,
     labelRows,
     commentRows,
+    subIssueRows,
   ] = await Promise.all([
     db.select().from(workflowState).where(eq(workflowState.id, iss.stateId)),
     iss.assigneeId
@@ -137,7 +139,56 @@ export async function GET(
       .leftJoin(user, eq(comment.userId, user.id))
       .where(eq(comment.issueId, iss.id))
       .orderBy(asc(comment.createdAt)),
+    db
+      .select({
+        id: issue.id,
+        identifier: issue.identifier,
+        title: issue.title,
+        priority: issue.priority,
+        stateId: issue.stateId,
+        stateName: workflowState.name,
+        stateCategory: workflowState.category,
+        stateColor: workflowState.color,
+      })
+      .from(issue)
+      .leftJoin(workflowState, eq(issue.stateId, workflowState.id))
+      .where(eq(issue.parentIssueId, iss.id))
+      .orderBy(asc(issue.createdAt)),
   ]);
+
+  const commentIds = commentRows.map((currentComment) => currentComment.id);
+  const reactionRows =
+    commentIds.length > 0
+      ? await db
+          .select({
+            commentId: reaction.commentId,
+            emoji: reaction.emoji,
+            userId: reaction.userId,
+          })
+          .from(reaction)
+          .where(inArray(reaction.commentId, commentIds))
+      : [];
+
+  const reactionsByComment = new Map<
+    string,
+    Map<string, { count: number; reacted: boolean }>
+  >();
+
+  for (const currentReaction of reactionRows) {
+    const byEmoji =
+      reactionsByComment.get(currentReaction.commentId) ??
+      new Map<string, { count: number; reacted: boolean }>();
+    const existing = byEmoji.get(currentReaction.emoji) ?? {
+      count: 0,
+      reacted: false,
+    };
+
+    byEmoji.set(currentReaction.emoji, {
+      count: existing.count + 1,
+      reacted: existing.reacted || currentReaction.userId === session.user.id,
+    });
+    reactionsByComment.set(currentReaction.commentId, byEmoji);
+  }
 
   const state = stateRows[0];
   const assignee = assigneeRows[0] ?? null;
@@ -172,8 +223,29 @@ export async function GET(
     comments: commentRows.map((c) => ({
       id: c.id,
       body: c.body,
-      user: { name: c.userName, image: c.userImage },
+      user: { name: c.userName ?? "Unknown user", image: c.userImage },
       createdAt: c.createdAt,
+      reactions: Array.from(reactionsByComment.get(c.id)?.entries() ?? []).map(
+        ([emoji, data]) => ({
+          emoji,
+          count: data.count,
+          reacted: data.reacted,
+        }),
+      ),
+    })),
+    subIssues: subIssueRows.map((subIssue) => ({
+      id: subIssue.id,
+      identifier: subIssue.identifier,
+      title: subIssue.title,
+      priority: subIssue.priority,
+      state: subIssue.stateId
+        ? {
+            id: subIssue.stateId,
+            name: subIssue.stateName ?? "Unknown",
+            category: subIssue.stateCategory ?? "backlog",
+            color: subIssue.stateColor ?? "#6b6f76",
+          }
+        : null,
     })),
   });
 }
@@ -189,6 +261,8 @@ export async function PATCH(
 
   const { id } = await params;
   const body = (await request.json()) as {
+    title?: string;
+    description?: string | null;
     stateId?: string;
     sortOrder?: number;
   };
@@ -201,6 +275,24 @@ export async function PATCH(
   const updateData: Partial<typeof issue.$inferInsert> = {
     updatedAt: new Date(),
   };
+
+  if (body.title !== undefined) {
+    const nextTitle = body.title.trim();
+    if (!nextTitle) {
+      return NextResponse.json(
+        { error: "Title cannot be empty" },
+        { status: 400 },
+      );
+    }
+
+    updateData.title = nextTitle;
+  }
+
+  if (body.description !== undefined) {
+    const nextDescription = body.description?.trim() ?? null;
+    updateData.description =
+      nextDescription && nextDescription.length > 0 ? nextDescription : null;
+  }
 
   if (body.stateId !== undefined) {
     const states = await db
@@ -250,7 +342,14 @@ export async function PATCH(
     .update(issue)
     .set(updateData)
     .where(eq(issue.id, existingIssue.id))
-    .returning();
+    .returning({
+      id: issue.id,
+      title: issue.title,
+      description: issue.description,
+      updatedAt: issue.updatedAt,
+      stateId: issue.stateId,
+      sortOrder: issue.sortOrder,
+    });
 
   return NextResponse.json(updated[0]);
 }

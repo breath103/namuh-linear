@@ -341,7 +341,7 @@ export default function TeamIssuesPage() {
                 labels={iss.labels}
                 projectName={iss.projectName ?? undefined}
                 createdAt={iss.createdAt}
-                href={`/issue/${iss.id}`}
+                href={`/team/${data.team.key}/issue/${iss.id}`}
                 displayProperties={options.displayProperties}
               />
             ))}
