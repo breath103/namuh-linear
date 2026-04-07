@@ -26,6 +26,7 @@ describe("Database schema", () => {
     { table: schema.issueRelation, name: "issue_relation" },
     { table: schema.comment, name: "comment" },
     { table: schema.reaction, name: "reaction" },
+    { table: schema.commentAttachment, name: "comment_attachment" },
     { table: schema.initiative, name: "initiative" },
     { table: schema.initiativeProject, name: "initiative_project" },
     { table: schema.customView, name: "custom_view" },
@@ -200,6 +201,7 @@ describe("Database schema", () => {
     expect(schema.cycleRelations).toBeDefined();
     expect(schema.initiativeRelations).toBeDefined();
     expect(schema.commentRelations).toBeDefined();
+    expect(schema.commentAttachmentRelations).toBeDefined();
     expect(schema.notificationRelations).toBeDefined();
     expect(schema.labelRelations).toBeDefined();
     expect(schema.customViewRelations).toBeDefined();
@@ -209,7 +211,7 @@ describe("Database schema", () => {
 
   // ── Total table count ────────────────────────────────────────────
 
-  it("has exactly 26 tables covering all data models", () => {
-    expect(expectedTables).toHaveLength(26);
+  it("has exactly 27 tables covering all data models", () => {
+    expect(expectedTables).toHaveLength(27);
   });
 });

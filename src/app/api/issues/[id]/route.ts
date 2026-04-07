@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   comment,
+  commentAttachment,
   issue,
   issueLabel,
   label,
@@ -11,6 +12,8 @@ import {
   user,
   workflowState,
 } from "@/lib/db/schema";
+import { normalizeIssueDescriptionHtml } from "@/lib/issue-description";
+import { getDownloadUrl } from "@/lib/s3";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -168,10 +171,36 @@ export async function GET(
           .from(reaction)
           .where(inArray(reaction.commentId, commentIds))
       : [];
+  const attachmentRows =
+    commentIds.length > 0
+      ? await db
+          .select({
+            id: commentAttachment.id,
+            commentId: commentAttachment.commentId,
+            fileName: commentAttachment.fileName,
+            storageKey: commentAttachment.storageKey,
+            contentType: commentAttachment.contentType,
+            size: commentAttachment.size,
+            createdAt: commentAttachment.createdAt,
+          })
+          .from(commentAttachment)
+          .where(inArray(commentAttachment.commentId, commentIds))
+          .orderBy(asc(commentAttachment.createdAt))
+      : [];
 
   const reactionsByComment = new Map<
     string,
     Map<string, { count: number; reacted: boolean }>
+  >();
+  const attachmentsByComment = new Map<
+    string,
+    {
+      id: string;
+      fileName: string;
+      contentType: string;
+      size: number;
+      downloadUrl: string | null;
+    }[]
   >();
 
   for (const currentReaction of reactionRows) {
@@ -189,6 +218,29 @@ export async function GET(
     });
     reactionsByComment.set(currentReaction.commentId, byEmoji);
   }
+
+  await Promise.all(
+    attachmentRows.map(async (currentAttachment) => {
+      const attachments =
+        attachmentsByComment.get(currentAttachment.commentId) ?? [];
+      let downloadUrl: string | null = null;
+
+      try {
+        downloadUrl = await getDownloadUrl(currentAttachment.storageKey);
+      } catch {
+        downloadUrl = null;
+      }
+
+      attachments.push({
+        id: currentAttachment.id,
+        fileName: currentAttachment.fileName,
+        contentType: currentAttachment.contentType,
+        size: currentAttachment.size,
+        downloadUrl,
+      });
+      attachmentsByComment.set(currentAttachment.commentId, attachments);
+    }),
+  );
 
   const state = stateRows[0];
   const assignee = assigneeRows[0] ?? null;
@@ -232,6 +284,7 @@ export async function GET(
           reacted: data.reacted,
         }),
       ),
+      attachments: attachmentsByComment.get(c.id) ?? [],
     })),
     subIssues: subIssueRows.map((subIssue) => ({
       id: subIssue.id,
@@ -289,9 +342,7 @@ export async function PATCH(
   }
 
   if (body.description !== undefined) {
-    const nextDescription = body.description?.trim() ?? null;
-    updateData.description =
-      nextDescription && nextDescription.length > 0 ? nextDescription : null;
+    updateData.description = normalizeIssueDescriptionHtml(body.description);
   }
 
   if (body.stateId !== undefined) {

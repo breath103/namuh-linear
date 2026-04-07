@@ -652,5 +652,22 @@
       }
     ],
     "fix_description": "Fixed the team-scoped issue-detail route, wired `/team/{key}/all` rows to it, implemented authenticated `PATCH /api/issues/[id]` title/description editing, added real comment creation, reaction toggling, and sub-issue creation/display, and verified all three against the live backend. `qa_pass` remains false because attachments are still missing, the description editor is still plain text rather than real rich text, and the layout still diverges visibly from Linear."
+  },
+  {
+    "feature_id": "feature-003",
+    "attempt": 2,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 595 unit tests passed after the feature-003 fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the clone still loaded successfully on `http://localhost:3015` after the detail-page changes.",
+      "Ran `make check`; typecheck plus Biome lint/format both passed after the issue-detail, schema, and attachment updates.",
+      "Used the live Ever session on `/team/ONB/issue/52dccddc-dbd6-4e50-8370-66e90967160f` and verified the detail page now renders the richer Linear-style header chrome, editable title, rich-text description toolbar, properties sidebar, activity feed, sub-issues section, and file-attachment composer; saved a fresh screenshot to `ralph/screenshots/qa/feature-003-attempt-2-detail.jpg`.",
+      "Edited the live issue title to `Feature 003 QA rich detail` and updated the description to rich HTML content containing bold text plus a bullet list; the authenticated in-browser `GET /api/issues/ONB-1` response returned the persisted HTML string `<p><strong>Feature 003 rich text verified</strong></p><ul><li>Supports formatting</li><li>Persists HTML</li></ul>`.",
+      "Uploaded a real file (`/tmp/feature-003-attachment.txt`) through the comment composer, posted the comment `Attachment and reaction verification`, reacted with 👍, and confirmed the UI updated immediately with the attachment chip, reaction state, and count.",
+      "Verified the backend response for `GET /api/issues/ONB-1` now includes the latest comment with attachment metadata plus a presigned S3 download URL, reaction `{ emoji: '👍', count: 1, reacted: true }`, and the newly created sub-issue `ONB-3 Feature 003 sub-issue`.",
+      "Verified the uploaded attachment exists in real S3 with `aws s3api head-object --bucket namuh-linear-assets-us-east-1 --key 'attachments/256dbbdb-0a5d-47b4-b501-c373ce491e13/1775559963266-feature-003-attachment.txt' --region us-east-1`; AWS returned `ContentLength: 36`, `ContentType: text/plain`, and `ServerSideEncryption: AES256`."
+    ],
+    "bugs_found": [],
+    "fix_description": "Implemented real comment-attachment persistence with the new `comment_attachment` table plus S3 uploads/download URLs, upgraded the description field to a toolbar-backed rich-text HTML editor, tightened the detail-page layout/action chrome toward the Linear reference, and verified title edits, rich-text persistence, attachments, reactions, and sub-issues end to end."
   }
 ]

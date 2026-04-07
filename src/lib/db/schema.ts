@@ -507,6 +507,24 @@ export const reaction = pgTable(
   ],
 );
 
+// ─── Comment Attachment ─────────────────────────────────────────────
+
+export const commentAttachment = pgTable(
+  "comment_attachment",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    commentId: uuid("comment_id")
+      .notNull()
+      .references(() => comment.id, { onDelete: "cascade" }),
+    fileName: varchar("file_name", { length: 500 }).notNull(),
+    storageKey: varchar("storage_key", { length: 1024 }).notNull(),
+    contentType: varchar("content_type", { length: 255 }).notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("comment_attachment_comment_idx").on(t.commentId)],
+);
+
 // ─── Initiative ──────────────────────────────────────────────────────
 
 export const initiative = pgTable(
@@ -861,6 +879,7 @@ export const commentRelations = relations(comment, ({ one, many }) => ({
   issue: one(issue, { fields: [comment.issueId], references: [issue.id] }),
   user: one(user, { fields: [comment.userId], references: [user.id] }),
   reactions: many(reaction),
+  attachments: many(commentAttachment),
 }));
 
 export const reactionRelations = relations(reaction, ({ one }) => ({
@@ -870,6 +889,16 @@ export const reactionRelations = relations(reaction, ({ one }) => ({
   }),
   user: one(user, { fields: [reaction.userId], references: [user.id] }),
 }));
+
+export const commentAttachmentRelations = relations(
+  commentAttachment,
+  ({ one }) => ({
+    comment: one(comment, {
+      fields: [commentAttachment.commentId],
+      references: [comment.id],
+    }),
+  }),
+);
 
 export const notificationRelations = relations(notification, ({ one }) => ({
   user: one(user, {

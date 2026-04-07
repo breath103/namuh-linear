@@ -1,13 +1,31 @@
 "use client";
 
 import { IssueProperties } from "@/components/issue-properties";
+import {
+  normalizeIssueDescriptionHtml,
+  richTextHtmlToPlainText,
+} from "@/lib/issue-description";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 interface IssueReaction {
   emoji: string;
   count: number;
   reacted: boolean;
+}
+
+interface IssueCommentAttachment {
+  id: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  downloadUrl: string | null;
 }
 
 interface IssueComment {
@@ -16,6 +34,7 @@ interface IssueComment {
   user: { name: string; image: string | null };
   createdAt: string;
   reactions: IssueReaction[];
+  attachments: IssueCommentAttachment[];
 }
 
 interface IssueSubIssue {
@@ -66,6 +85,16 @@ interface IssueDetail {
 }
 
 const QUICK_REACTIONS = ["👍", "🚀", "👀", "❤️"];
+const DESCRIPTION_ACTIONS: ReadonlyArray<{
+  label: string;
+  command: string;
+  value?: string;
+}> = [
+  { label: "Bold", command: "bold" },
+  { label: "Italic", command: "italic" },
+  { label: "Bullet list", command: "insertUnorderedList" },
+  { label: "Quote", command: "formatBlock", value: "blockquote" },
+];
 
 function formatFullDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -84,6 +113,52 @@ function formatFullDate(dateStr: string): string {
     "Dec",
   ];
   return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+function formatFileSize(size: number): string {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentChip({
+  attachment,
+}: {
+  attachment: IssueCommentAttachment;
+}) {
+  const content = (
+    <>
+      <span className="font-medium">{attachment.fileName}</span>
+      <span className="text-[11px] text-[var(--color-text-secondary)]">
+        {formatFileSize(attachment.size)}
+      </span>
+    </>
+  );
+
+  if (!attachment.downloadUrl) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-content-bg)] px-3 py-1.5 text-[12px] text-[var(--color-text-primary)]">
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={attachment.downloadUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-content-bg)] px-3 py-1.5 text-[12px] text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+    >
+      {content}
+    </a>
+  );
 }
 
 function CommentReactions({
@@ -140,6 +215,7 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
     "title" | "description" | null
   >(null);
   const [commentBody, setCommentBody] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
   const [subIssueTitle, setSubIssueTitle] = useState("");
   const [showSubIssueForm, setShowSubIssueForm] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
@@ -149,8 +225,12 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
   );
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [descriptionFocused, setDescriptionFocused] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
   const titleRef = useRef<HTMLHeadingElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchIssue = useCallback(async () => {
     setLoading(true);
@@ -159,7 +239,9 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
       if (res.ok) {
         const json = (await res.json()) as IssueDetail;
         setIssue(json);
-        setDescriptionDraft(json.description ?? "");
+        setDescriptionDraft(
+          normalizeIssueDescriptionHtml(json.description) ?? "",
+        );
       } else {
         setIssue(null);
       }
@@ -173,7 +255,9 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
   }, [fetchIssue]);
 
   useEffect(() => {
-    if (!issue) return;
+    if (!issue) {
+      return;
+    }
 
     if (titleRef.current && document.activeElement !== titleRef.current) {
       titleRef.current.textContent = issue.title;
@@ -183,8 +267,10 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
       descriptionRef.current &&
       document.activeElement !== descriptionRef.current
     ) {
-      descriptionRef.current.textContent = issue.description ?? "";
-      setDescriptionDraft(issue.description ?? "");
+      const nextDescription =
+        normalizeIssueDescriptionHtml(issue.description) ?? "";
+      descriptionRef.current.innerHTML = nextDescription;
+      setDescriptionDraft(nextDescription);
     }
   }, [issue]);
 
@@ -192,7 +278,9 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
     payload: Partial<Pick<IssueDetail, "title" | "description">>,
     field: "title" | "description",
   ) {
-    if (!issue) return;
+    if (!issue) {
+      return;
+    }
 
     setSavingField(field);
     try {
@@ -228,7 +316,9 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
   }
 
   async function handleTitleBlur() {
-    if (!issue || !titleRef.current) return;
+    if (!issue || !titleRef.current) {
+      return;
+    }
 
     const nextTitle = titleRef.current.textContent?.trim() ?? "";
     if (!nextTitle) {
@@ -242,25 +332,73 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
   }
 
   async function handleDescriptionBlur() {
-    if (!issue || !descriptionRef.current) return;
+    if (!issue || !descriptionRef.current) {
+      return;
+    }
 
-    const nextDescription = descriptionRef.current.textContent?.trim() ?? "";
-    const normalized = nextDescription.length > 0 ? nextDescription : null;
+    const nextDescription = normalizeIssueDescriptionHtml(
+      descriptionRef.current.innerHTML,
+    );
+    const currentDescription = normalizeIssueDescriptionHtml(issue.description);
 
-    if (normalized !== issue.description) {
-      await patchIssue({ description: normalized }, "description");
+    descriptionRef.current.innerHTML = nextDescription ?? "";
+    setDescriptionDraft(nextDescription ?? "");
+
+    if (nextDescription !== currentDescription) {
+      await patchIssue({ description: nextDescription }, "description");
     }
   }
 
+  function handleAttachmentChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextFiles = Array.from(event.target.files ?? []);
+
+    setPendingAttachments((current) => {
+      const merged = [...current];
+
+      for (const nextFile of nextFiles) {
+        const alreadySelected = merged.some(
+          (currentFile) =>
+            currentFile.name === nextFile.name &&
+            currentFile.size === nextFile.size &&
+            currentFile.lastModified === nextFile.lastModified,
+        );
+
+        if (!alreadySelected) {
+          merged.push(nextFile);
+        }
+      }
+
+      return merged.slice(0, 5);
+    });
+
+    event.target.value = "";
+  }
+
+  function removePendingAttachment(index: number) {
+    setPendingAttachments((current) =>
+      current.filter((_, currentIndex) => currentIndex !== index),
+    );
+  }
+
   async function handleCommentSubmit() {
-    if (!issue || !commentBody.trim() || submittingComment) return;
+    const hasBody = commentBody.trim().length > 0;
+    const hasAttachments = pendingAttachments.length > 0;
+
+    if (!issue || (!hasBody && !hasAttachments) || submittingComment) {
+      return;
+    }
 
     setSubmittingComment(true);
     try {
+      const formData = new FormData();
+      formData.set("body", commentBody.trim());
+      for (const attachment of pendingAttachments) {
+        formData.append("attachments", attachment);
+      }
+
       const res = await fetch(`/api/issues/${issue.id}/comments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: commentBody.trim() }),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -277,13 +415,20 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
           : current,
       );
       setCommentBody("");
+      setPendingAttachments([]);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } finally {
       setSubmittingComment(false);
     }
   }
 
   async function handleReactionToggle(commentId: string, emoji: string) {
-    if (reactingCommentId) return;
+    if (reactingCommentId) {
+      return;
+    }
 
     setReactingCommentId(commentId);
     try {
@@ -316,7 +461,9 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
   }
 
   async function handleSubIssueSubmit() {
-    if (!issue || !subIssueTitle.trim() || submittingSubIssue) return;
+    if (!issue || !subIssueTitle.trim() || submittingSubIssue) {
+      return;
+    }
 
     setSubmittingSubIssue(true);
     try {
@@ -343,6 +490,28 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
     }
   }
 
+  function applyDescriptionCommand(command: string, value?: string) {
+    descriptionRef.current?.focus();
+    document.execCommand(command, false, value);
+    const nextDraft = descriptionRef.current?.innerHTML ?? "";
+    setDescriptionDraft(nextDraft);
+  }
+
+  async function handleCopyLink(detailHref: string) {
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}${detailHref}`,
+      );
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+
+    window.setTimeout(() => {
+      setCopyState("idle");
+    }, 2000);
+  }
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
@@ -360,294 +529,407 @@ export function IssueDetailView({ issueId }: { issueId: string }) {
   }
 
   const detailHref = `/team/${issue.team.key}/issue/${issue.id}`;
+  const descriptionIsEmpty =
+    richTextHtmlToPlainText(descriptionDraft).trim().length === 0;
 
   return (
-    <div className="flex h-full">
-      <div className="flex flex-1 flex-col overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-2.5">
-          <div className="flex items-center gap-2 text-[13px] text-[var(--color-text-secondary)]">
-            <Link
-              href={`/team/${issue.team.key}/all`}
-              className="transition-colors hover:text-[var(--color-text-primary)]"
-            >
-              {issue.team.name}
-            </Link>
-            <span>/</span>
-            <span>{issue.identifier}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href={detailHref}
-              className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-            >
-              Team route
-            </Link>
-          </div>
-        </div>
-
-        <div className="px-12 pt-10 pb-4">
-          <div
-            ref={titleRef}
-            contentEditable
-            suppressContentEditableWarning
-            onBlur={() => void handleTitleBlur()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                event.currentTarget.blur();
-              }
-              if (event.key === "Escape") {
-                event.preventDefault();
-                event.currentTarget.textContent = issue.title;
-                event.currentTarget.blur();
-              }
-            }}
-            className="min-h-[34px] rounded-md text-[32px] font-semibold leading-tight text-[var(--color-text-primary)] outline-none transition-shadow focus:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]"
-            aria-label="Issue title"
-          >
-            {issue.title}
-          </div>
-          <div className="mt-2 text-[12px] text-[var(--color-text-secondary)]">
-            {savingField === "title"
-              ? "Saving title..."
-              : `Updated ${formatFullDate(issue.updatedAt)}`}
-          </div>
-        </div>
-
-        <div className="flex-1 px-12 pb-8">
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <div className="mb-2 text-[12px] font-medium uppercase tracking-wide text-[var(--color-text-tertiary)]">
-              Description
-            </div>
-            <div className="relative">
-              {!descriptionFocused && descriptionDraft.trim().length === 0 && (
-                <span className="pointer-events-none absolute left-0 top-0 text-[15px] text-[var(--color-text-secondary)]">
-                  Add a description...
+    <div className="flex h-full overflow-y-auto bg-[var(--color-content-bg)]">
+      <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 gap-8 px-6 py-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:px-10">
+        <div className="min-w-0">
+          <div className="flex flex-col gap-6 border-b border-[var(--color-border)] pb-6 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2 text-[12px] uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
+                <Link
+                  href={`/team/${issue.team.key}/all`}
+                  className="transition-colors hover:text-[var(--color-text-primary)]"
+                >
+                  {issue.team.name}
+                </Link>
+                <span>{issue.identifier}</span>
+                <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[11px] tracking-normal text-[var(--color-text-secondary)]">
+                  {issue.state?.name ?? "No status"}
                 </span>
-              )}
+              </div>
               <div
-                ref={descriptionRef}
+                ref={titleRef}
                 contentEditable
                 suppressContentEditableWarning
-                onFocus={() => setDescriptionFocused(true)}
-                onInput={(event) =>
-                  setDescriptionDraft(event.currentTarget.textContent ?? "")
-                }
-                onBlur={() => {
-                  setDescriptionFocused(false);
-                  void handleDescriptionBlur();
-                }}
-                className="min-h-[120px] whitespace-pre-wrap rounded-md text-[15px] leading-relaxed text-[var(--color-text-primary)] outline-none transition-shadow focus:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]"
-                aria-label="Issue description"
-              >
-                {issue.description ?? ""}
-              </div>
-            </div>
-            <div className="mt-3 text-[12px] text-[var(--color-text-secondary)]">
-              {savingField === "description"
-                ? "Saving description..."
-                : "Edit inline and click away to save."}
-            </div>
-          </div>
-
-          <div className="mt-8 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[13px] font-medium text-[var(--color-text-secondary)]">
-                Sub-issues
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowSubIssueForm((current) => !current)}
-                className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-              >
-                {showSubIssueForm ? "Cancel" : "Create sub-issue"}
-              </button>
-            </div>
-
-            {showSubIssueForm && (
-              <div className="mb-4 flex gap-2">
-                <input
-                  type="text"
-                  value={subIssueTitle}
-                  onChange={(event) => setSubIssueTitle(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      void handleSubIssueSubmit();
-                    }
-                  }}
-                  placeholder="Sub-issue title"
-                  className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-content-bg)] px-3 py-2 text-[13px] text-[var(--color-text-primary)] outline-none transition-shadow focus:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]"
-                />
-                <button
-                  type="button"
-                  disabled={submittingSubIssue || !subIssueTitle.trim()}
-                  onClick={() => void handleSubIssueSubmit()}
-                  className="rounded-md bg-[var(--color-accent)] px-3 py-2 text-[12px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {submittingSubIssue ? "Creating..." : "Create"}
-                </button>
-              </div>
-            )}
-
-            {issue.subIssues.length > 0 ? (
-              <div className="space-y-2">
-                {issue.subIssues.map((subIssue) => (
-                  <Link
-                    key={subIssue.id}
-                    href={`/team/${issue.team.key}/issue/${subIssue.id}`}
-                    className="flex items-center justify-between rounded-lg border border-[var(--color-border)] px-3 py-2 text-[13px] transition-colors hover:bg-[var(--color-surface-hover)]"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-[12px] text-[var(--color-text-secondary)]">
-                        {subIssue.identifier}
-                      </div>
-                      <div className="truncate text-[var(--color-text-primary)]">
-                        {subIssue.title}
-                      </div>
-                    </div>
-                    <div className="text-[12px] text-[var(--color-text-secondary)]">
-                      {subIssue.state?.name ?? "No status"}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[13px] text-[var(--color-text-secondary)]">
-                No sub-issues yet
-              </p>
-            )}
-          </div>
-
-          <div className="mt-8 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <h2 className="mb-4 text-[13px] font-medium text-[var(--color-text-secondary)]">
-              Activity
-            </h2>
-
-            {issue.comments.length > 0 ? (
-              <div className="space-y-5">
-                {issue.comments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="rounded-lg border border-[var(--color-border)] px-4 py-3"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] font-medium text-white">
-                        {comment.user.name?.[0]?.toUpperCase() ?? "?"}
-                      </div>
-                      <div>
-                        <div className="text-[13px] font-medium text-[var(--color-text-primary)]">
-                          {comment.user.name}
-                        </div>
-                        <div className="text-[12px] text-[var(--color-text-secondary)]">
-                          {formatFullDate(comment.createdAt)}
-                        </div>
-                      </div>
-                    </div>
-                    <p className="mt-3 whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--color-text-primary)]">
-                      {comment.body}
-                    </p>
-                    <CommentReactions
-                      comment={comment}
-                      disabled={reactingCommentId === comment.id}
-                      onToggle={handleReactionToggle}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[13px] text-[var(--color-text-secondary)]">
-                No activity yet
-              </p>
-            )}
-
-            <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] px-4 py-3">
-              <textarea
-                placeholder="Leave a comment..."
-                value={commentBody}
-                onChange={(event) => setCommentBody(event.target.value)}
+                onBlur={() => void handleTitleBlur()}
                 onKeyDown={(event) => {
-                  if (
-                    (event.metaKey || event.ctrlKey) &&
-                    event.key === "Enter"
-                  ) {
+                  if (event.key === "Enter") {
                     event.preventDefault();
-                    void handleCommentSubmit();
+                    event.currentTarget.blur();
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    event.currentTarget.textContent = issue.title;
+                    event.currentTarget.blur();
                   }
                 }}
-                className="w-full resize-none bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] focus:outline-none"
-                rows={4}
-              />
-              <div className="mt-3 flex items-center justify-between">
-                <div className="text-[12px] text-[var(--color-text-secondary)]">
-                  Send with Cmd/Ctrl + Enter
+                className="mt-4 min-h-[44px] rounded-md text-[36px] font-semibold leading-tight text-[var(--color-text-primary)] outline-none transition-shadow focus:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]"
+                aria-label="Issue title"
+              >
+                {issue.title}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-[var(--color-text-secondary)]">
+                <span>
+                  {savingField === "title"
+                    ? "Saving title..."
+                    : `Updated ${formatFullDate(issue.updatedAt)}`}
+                </span>
+                <span>Created by {issue.creator?.name ?? "Unknown"}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/team/${issue.team.key}/all`}
+                className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+              >
+                Back to issues
+              </Link>
+              <button
+                type="button"
+                onClick={() => void handleCopyLink(detailHref)}
+                className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+              >
+                {copyState === "copied"
+                  ? "Copied"
+                  : copyState === "failed"
+                    ? "Copy failed"
+                    : "Copy link"}
+              </button>
+              <Link
+                href={detailHref}
+                target="_blank"
+                className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+              >
+                Open in tab
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-8 space-y-6">
+            <section className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-5">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
+                    Description
+                  </div>
+                  <div className="mt-1 text-[12px] text-[var(--color-text-secondary)]">
+                    Rich text supported. Changes save when focus leaves the
+                    editor.
+                  </div>
                 </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {DESCRIPTION_ACTIONS.map((action) => (
+                    <button
+                      key={action.label}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() =>
+                        applyDescriptionCommand(action.command, action.value)
+                      }
+                      className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="relative rounded-[20px] border border-[var(--color-border)] bg-[var(--color-content-bg)] px-4 py-4">
+                {!descriptionFocused && descriptionIsEmpty && (
+                  <span className="pointer-events-none absolute left-4 top-4 text-[15px] text-[var(--color-text-secondary)]">
+                    Add a description...
+                  </span>
+                )}
+                <div
+                  ref={descriptionRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onFocus={() => setDescriptionFocused(true)}
+                  onInput={(event) =>
+                    setDescriptionDraft(event.currentTarget.innerHTML)
+                  }
+                  onBlur={() => {
+                    setDescriptionFocused(false);
+                    void handleDescriptionBlur();
+                  }}
+                  className="min-h-[180px] rounded-md text-[15px] leading-7 text-[var(--color-text-primary)] outline-none transition-shadow focus:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-accent)_20%,transparent)] [&_a]:text-[var(--color-accent)] [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--color-border)] [&_blockquote]:pl-4 [&_li]:ml-4 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:list-disc"
+                  aria-label="Issue description"
+                />
+              </div>
+              <div className="mt-3 text-[12px] text-[var(--color-text-secondary)]">
+                {savingField === "description"
+                  ? "Saving description..."
+                  : "Use Bold, Italic, Bullet list, and Quote for richer notes."}
+              </div>
+            </section>
+
+            <section className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-[13px] font-medium text-[var(--color-text-secondary)]">
+                  Sub-issues
+                </h2>
                 <button
                   type="button"
-                  disabled={submittingComment || !commentBody.trim()}
-                  onClick={() => void handleCommentSubmit()}
-                  className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-[12px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setShowSubIssueForm((current) => !current)}
+                  className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
                 >
-                  {submittingComment ? "Posting..." : "Comment"}
+                  {showSubIssueForm ? "Cancel" : "Create sub-issue"}
                 </button>
+              </div>
+
+              {showSubIssueForm && (
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="text"
+                    value={subIssueTitle}
+                    onChange={(event) => setSubIssueTitle(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void handleSubIssueSubmit();
+                      }
+                    }}
+                    placeholder="Sub-issue title"
+                    className="flex-1 rounded-full border border-[var(--color-border)] bg-[var(--color-content-bg)] px-4 py-2.5 text-[13px] text-[var(--color-text-primary)] outline-none transition-shadow focus:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-accent)_25%,transparent)]"
+                  />
+                  <button
+                    type="button"
+                    disabled={submittingSubIssue || !subIssueTitle.trim()}
+                    onClick={() => void handleSubIssueSubmit()}
+                    className="rounded-full bg-[var(--color-accent)] px-4 py-2.5 text-[12px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {submittingSubIssue ? "Creating..." : "Create"}
+                  </button>
+                </div>
+              )}
+
+              {issue.subIssues.length > 0 ? (
+                <div className="space-y-2">
+                  {issue.subIssues.map((subIssue) => (
+                    <Link
+                      key={subIssue.id}
+                      href={`/team/${issue.team.key}/issue/${subIssue.id}`}
+                      className="flex items-center justify-between rounded-[18px] border border-[var(--color-border)] bg-[var(--color-content-bg)] px-4 py-3 text-[13px] transition-colors hover:bg-[var(--color-surface-hover)]"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-[12px] text-[var(--color-text-secondary)]">
+                          {subIssue.identifier}
+                        </div>
+                        <div className="truncate text-[var(--color-text-primary)]">
+                          {subIssue.title}
+                        </div>
+                      </div>
+                      <div className="text-[12px] text-[var(--color-text-secondary)]">
+                        {subIssue.state?.name ?? "No status"}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[13px] text-[var(--color-text-secondary)]">
+                  No sub-issues yet
+                </p>
+              )}
+            </section>
+
+            <section className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-5">
+              <h2 className="mb-4 text-[13px] font-medium text-[var(--color-text-secondary)]">
+                Activity
+              </h2>
+
+              {issue.comments.length > 0 ? (
+                <div className="space-y-5">
+                  {issue.comments.map((comment) => (
+                    <div
+                      key={comment.id}
+                      className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-content-bg)] px-4 py-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)] text-[10px] font-medium text-white">
+                          {comment.user.name?.[0]?.toUpperCase() ?? "?"}
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-medium text-[var(--color-text-primary)]">
+                            {comment.user.name}
+                          </div>
+                          <div className="text-[12px] text-[var(--color-text-secondary)]">
+                            {formatFullDate(comment.createdAt)}
+                          </div>
+                        </div>
+                      </div>
+                      {comment.body.trim().length > 0 && (
+                        <p className="mt-3 whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--color-text-primary)]">
+                          {comment.body}
+                        </p>
+                      )}
+                      {comment.attachments.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {comment.attachments.map((attachment) => (
+                            <AttachmentChip
+                              key={attachment.id}
+                              attachment={attachment}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <CommentReactions
+                        comment={comment}
+                        disabled={reactingCommentId === comment.id}
+                        onToggle={handleReactionToggle}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[13px] text-[var(--color-text-secondary)]">
+                  No activity yet
+                </p>
+              )}
+
+              <div className="mt-6 rounded-[24px] border border-[var(--color-border)] bg-[var(--color-content-bg)] px-4 py-4">
+                <textarea
+                  placeholder="Leave a comment..."
+                  value={commentBody}
+                  onChange={(event) => setCommentBody(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      (event.metaKey || event.ctrlKey) &&
+                      event.key === "Enter"
+                    ) {
+                      event.preventDefault();
+                      void handleCommentSubmit();
+                    }
+                  }}
+                  className="w-full resize-none bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] focus:outline-none"
+                  rows={4}
+                />
+                {pendingAttachments.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {pendingAttachments.map((attachment, index) => (
+                      <button
+                        key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
+                        type="button"
+                        onClick={() => removePendingAttachment(index)}
+                        className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-1.5 text-[12px] text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                      >
+                        <span>{attachment.name}</span>
+                        <span className="text-[var(--color-text-secondary)]">
+                          {formatFileSize(attachment.size)}
+                        </span>
+                        <span className="text-[var(--color-text-secondary)]">
+                          Remove
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      onChange={handleAttachmentChange}
+                      aria-label="Add attachments"
+                      className="max-w-full text-[12px] text-[var(--color-text-secondary)] file:mr-3 file:rounded-full file:border-0 file:bg-[var(--color-surface)] file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-[var(--color-text-primary)] hover:file:bg-[var(--color-surface-hover)]"
+                    />
+                    <div className="text-[12px] text-[var(--color-text-secondary)]">
+                      Up to 5 files, 10 MB each
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[12px] text-[var(--color-text-secondary)]">
+                      Send with Cmd/Ctrl + Enter
+                    </div>
+                    <button
+                      type="button"
+                      disabled={
+                        submittingComment ||
+                        (commentBody.trim().length === 0 &&
+                          pendingAttachments.length === 0)
+                      }
+                      onClick={() => void handleCommentSubmit()}
+                      className="rounded-full bg-[var(--color-accent)] px-4 py-2 text-[12px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {submittingComment ? "Posting..." : "Comment"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <aside className="h-fit rounded-[24px] border border-[var(--color-border)] bg-[var(--color-sidebar-bg)] p-5 lg:sticky lg:top-4">
+          <div className="rounded-[20px] border border-[var(--color-border)] bg-[var(--color-content-bg)] p-4">
+            <div className="mb-3 text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
+              Properties
+            </div>
+            {issue.state && (
+              <IssueProperties
+                status={{
+                  name: issue.state.name,
+                  category: issue.state.category,
+                  color: issue.state.color,
+                }}
+                priority={issue.priority}
+                assignee={issue.assignee}
+                labels={issue.labels.map((label, index) => ({
+                  id: `${label.name}-${index}`,
+                  name: label.name,
+                  color: label.color,
+                }))}
+                project={issue.project}
+              />
+            )}
+          </div>
+
+          <div className="mt-4 rounded-[20px] border border-[var(--color-border)] bg-[var(--color-content-bg)] p-4">
+            <div className="mb-3 text-[12px] font-medium uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
+              Details
+            </div>
+            <div className="space-y-3 text-[12px]">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[var(--color-text-secondary)]">
+                  Created
+                </span>
+                <span className="text-right text-[var(--color-text-primary)]">
+                  {formatFullDate(issue.createdAt)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[var(--color-text-secondary)]">
+                  Updated
+                </span>
+                <span className="text-right text-[var(--color-text-primary)]">
+                  {formatFullDate(issue.updatedAt)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[var(--color-text-secondary)]">
+                  Creator
+                </span>
+                <span className="max-w-[150px] truncate text-right text-[var(--color-text-primary)]">
+                  {issue.creator?.name ?? "Unknown"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-[var(--color-text-secondary)]">
+                  Team route
+                </span>
+                <Link
+                  href={detailHref}
+                  className="truncate text-[var(--color-accent)] transition-colors hover:opacity-80"
+                >
+                  {issue.identifier}
+                </Link>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="w-[300px] shrink-0 border-l border-[var(--color-border)] bg-[var(--color-sidebar-bg)] p-4">
-        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] p-4">
-          <div className="mb-3 text-[12px] font-medium uppercase tracking-wide text-[var(--color-text-tertiary)]">
-            Properties
-          </div>
-          {issue.state && (
-            <IssueProperties
-              status={{
-                name: issue.state.name,
-                category: issue.state.category,
-                color: issue.state.color,
-              }}
-              priority={issue.priority}
-              assignee={issue.assignee}
-              labels={issue.labels.map((label, index) => ({
-                id: `${label.name}-${index}`,
-                name: label.name,
-                color: label.color,
-              }))}
-              project={issue.project}
-            />
-          )}
-        </div>
-
-        <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] p-4">
-          <div className="space-y-2 text-[12px]">
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--color-text-secondary)]">
-                Created
-              </span>
-              <span className="text-[var(--color-text-primary)]">
-                {formatFullDate(issue.createdAt)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--color-text-secondary)]">
-                Updated
-              </span>
-              <span className="text-[var(--color-text-primary)]">
-                {formatFullDate(issue.updatedAt)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[var(--color-text-secondary)]">
-                Creator
-              </span>
-              <span className="max-w-[140px] truncate text-[var(--color-text-primary)]">
-                {issue.creator?.name ?? "Unknown"}
-              </span>
-            </div>
-          </div>
-        </div>
+        </aside>
       </div>
     </div>
   );
