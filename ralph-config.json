@@ -8,6 +8,10 @@
   "dbProvider": "rds",
   "skipDeploy": false,
   "browserAgent": "ever",
+  "testAccount": {
+    "provider": "google",
+    "email": "jaeyunha0317@gmail.com"
+  },
   "services": {
     "email": { "provider": "ses", "package": "@aws-sdk/client-sesv2" },
     "storage": { "provider": "s3", "package": "@aws-sdk/client-s3" },
