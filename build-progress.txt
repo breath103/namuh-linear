@@ -1170,3 +1170,30 @@ Date: 2026-04-07
 - Permission selectors use select dropdowns with admins/members/anyone options
 - Invite URL generated client-side with random hex string
 - Used button elements instead of anchor href="#" to satisfy a11y lint rules
+
+## Iteration 38 — settings-009: API & Webhooks Admin Page
+Date: 2026-04-07
+
+### What was built
+- API settings page (`/settings/api`) with all sections:
+  - GraphQL API description with Docs link and Slack link
+  - **OAuth Applications**: section with "New OAuth application" button, empty state
+  - **Webhooks**: description, Docs link, "New webhook" button, empty state
+  - **Member API keys**: description with security & access settings link, API key creation permission selector (Only admins/All members), empty state
+- Reusable SectionHeader, EmptyList, AddButton, DocsLink components
+
+### Test results
+- 13 unit tests passing (tests/settings-api.test.tsx)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/app/(app)/settings/api/page.tsx — new API settings page
+- tests/settings-api.test.tsx — new unit test file (13 tests)
+- prd.json — marked settings-009 build_pass: true
+- qa-hints.json — added settings-009 QA hints
+
+### Decisions
+- UI-first approach: lists show empty states, creation flows are placeholder buttons
+- Permission selector defaults to "Only admins" matching Linear's default
+- Used span for Slack/docs links instead of anchor to satisfy a11y linter

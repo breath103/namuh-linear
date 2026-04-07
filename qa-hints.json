@@ -731,5 +731,31 @@
       "Visual comparison with Linear screenshot",
       "Responsive layout at different widths"
     ]
+  },
+  {
+    "feature_id": "settings-009",
+    "tests_written": [
+      "renders page title 'API'",
+      "renders GraphQL API description",
+      "renders Docs links",
+      "renders OAuth Applications section",
+      "renders 'New OAuth application' button",
+      "renders empty state for OAuth applications",
+      "renders Webhooks section with description",
+      "renders 'New webhook' button",
+      "renders empty state for webhooks",
+      "renders Member API keys section",
+      "renders API key creation permission description",
+      "renders API key creation permission selector",
+      "renders security & access settings link text"
+    ],
+    "needs_deeper_qa": [
+      "New OAuth application creation flow",
+      "New webhook creation flow",
+      "API key creation and listing",
+      "Permission selector persistence",
+      "Visual comparison with Linear screenshot",
+      "Docs links navigation"
+    ]
   }
 ]
