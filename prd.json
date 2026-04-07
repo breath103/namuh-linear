@@ -315,7 +315,7 @@
     "priority": "P6",
     "core": false,
     "dependent_on": ["feature-001", "feature-006"],
-    "build_pass": false,
+    "build_pass": true,
     "qa_pass": false
   },
   {

@@ -910,3 +910,48 @@ Date: 2026-04-07
 - Used `<dialog>` element for accessibility (Biome a11y requirement)
 - Issue search scoped to user's workspace teams
 - Sidebar search button dispatches synthetic Cmd+K event to toggle palette
+
+## Iteration 29 — feature-041: Custom Views Page
+Date: 2026-04-07
+
+### What was built
+- API route `GET /api/views` — fetches all custom views for user's workspace with owner info
+- API route `POST /api/views` — creates new custom view with name, layout, filter state, personal/shared flag
+- Views page (`src/app/(app)/views/page.tsx`) with:
+  - Issues/Projects tab switching with data-active attributes
+  - View list with Name and Owner columns
+  - Personal views section with "Only visible to you" label
+  - Shared views section
+  - Layout icons (list/board) per view row
+  - Create view modal with name input and layout selector (List/Board)
+  - Empty state when no views exist with create CTA
+  - Loading state
+
+### Test results
+- 9 unit tests passing (tests/custom-views.test.tsx)
+  - Page title and tabs rendering
+  - Empty state display
+  - View list with name/owner columns
+  - Personal/shared view separation
+  - Create view button
+  - Layout icon display
+  - Create modal with POST submission
+  - Tab switching
+  - API route file exports verification
+- 386 total tests passing (excluding pre-existing onboard-validation and empty-states failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/app/api/views/route.ts — new API route (GET + POST)
+- src/app/(app)/views/page.tsx — new Views page
+- tests/custom-views.test.tsx — new unit test file (9 tests)
+- prd.json — marked feature-041 build_pass: true
+- qa-hints.json — added feature-041 QA hints
+
+### Decisions
+- Used same pattern as projects page: client-side fetch, loading state, EmptyState component
+- Views separated into personal/shared sections matching Linear's UI
+- Create modal is inline (not a separate route) for quick creation
+- Tab switching is client-side state only (Issues/Projects tabs)
+- API route validates name is non-empty string before creation

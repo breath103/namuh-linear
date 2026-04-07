@@ -534,5 +534,27 @@
       "Sidebar search button triggering command palette",
       "Custom event dispatch for opening create issue modal from palette"
     ]
+  },
+  {
+    "feature_id": "feature-041",
+    "tests_written": [
+      "Renders page title and Issues/Projects tabs",
+      "Shows empty state when no views exist",
+      "Renders view list with Name and Owner columns",
+      "Separates personal and shared views with section headers",
+      "Shows create view button in header",
+      "Displays view layout icon (list/board)",
+      "Opens create view modal and submits via POST",
+      "Switches between Issues and Projects tabs",
+      "API route file exports GET and POST handlers"
+    ],
+    "needs_deeper_qa": [
+      "View click navigation to filtered issue/project list",
+      "Delete and edit view functionality",
+      "Filter state persistence when creating views",
+      "Team-scoped views vs workspace-scoped views",
+      "View rendering with actual issue/project data",
+      "Responsive layout on smaller screens"
+    ]
   }
 ]
