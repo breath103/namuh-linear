@@ -784,5 +784,29 @@
       "Visual comparison with Linear screenshot",
       "Danger zone actions (leave/retire/delete)"
     ]
+  },
+  {
+    "feature_id": "settings-011",
+    "tests_written": [
+      "renders page title 'General'",
+      "renders Icon & Name section",
+      "renders team name input with current value",
+      "renders Identifier section with description",
+      "renders identifier input with current key",
+      "renders Timezone section with description",
+      "renders timezone selector",
+      "renders Estimates section with description",
+      "renders Issue estimation selector",
+      "renders Create issues by email toggle",
+      "renders Enable detailed issue history toggle"
+    ],
+    "needs_deeper_qa": [
+      "Icon picker/emoji selector",
+      "Name/identifier save via API",
+      "Timezone change persists",
+      "Estimate type change persists",
+      "Email toggle shows team email address",
+      "Visual comparison with Linear screenshot"
+    ]
   }
 ]

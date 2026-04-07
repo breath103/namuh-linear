@@ -1228,3 +1228,33 @@ Date: 2026-04-07
 - Cards are clickable but links not wired yet (sub-pages built in subsequent iterations)
 - Team data fetched from API with memberCount, labelCount, statusCount, triageEnabled, cyclesEnabled
 - Danger zone uses muted buttons that highlight red on hover
+
+## Iteration 40 — settings-011: Team General Settings
+Date: 2026-04-07
+
+### What was built
+- Team General settings page (`/settings/teams/[key]/general`):
+  - **Icon & Name**: editable icon button + name text input
+  - **Identifier**: editable text input (auto-uppercased), used in issue IDs (ENG-123)
+  - **Timezone**: selector with 16 timezones (GMT offset + city format)
+  - **Estimates**: Issue estimation selector (Not in use / Linear / Exponential / T-shirt)
+  - **Create issues by email**: toggle with team-specific email address shown when enabled
+  - **Other**: Enable detailed issue history toggle
+- Reusable Toggle, SectionHeader components
+
+### Test results
+- 11 unit tests passing (tests/team-general.test.tsx)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/app/(app)/settings/teams/[key]/general/page.tsx — new Team General settings page
+- tests/team-general.test.tsx — new unit test file (11 tests)
+- prd.json — marked settings-011 build_pass: true
+- qa-hints.json — added settings-011 QA hints
+
+### Decisions
+- Timezone list covers major global timezones (16 options) matching Linear's format
+- Estimate options match Linear: Not in use, Linear, Exponential, T-shirt
+- Identifier input auto-uppercases for consistency with team keys
+- Email address format: {key}@team.linear.app shown when email toggle is enabled
