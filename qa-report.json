@@ -1134,5 +1134,38 @@
       }
     ],
     "fix_description": "Refactored views into route-aware `/views/issues` and `/views/projects` pages, added saved issue/project view metadata plus edit/delete APIs, restored issue filters and project sort/filter state when opening views, corrected the team sidebar links, and fixed workspace resolution so the views and projects APIs honor the same active-workspace cookie logic as the app shell."
+  },
+  {
+    "feature_id": "settings-001",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; the full Vitest suite passed before and after the settings fixes, finishing at `646` passing tests.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the smoke suite passed once Playwright could control the configured web server lifecycle.",
+      "Compared the clone's settings sidebar against `https://linear.app/settings/account/preferences` in Ever and confirmed the original includes a `Your teams` section beneath `Administration`.",
+      "Verified the pre-fix clone in Ever and Playwright: the settings shell rendered without any `Your teams` section even though the logged-in workspace had multiple teams, and saved evidence to `ralph/screenshots/qa/settings-001-desktop-pre.png` and `ralph/screenshots/qa/settings-001-mobile-pre.png`.",
+      "Verified the pre-fix mobile layout at `390x844`: the app shell sidebar and settings sidebar rendered side by side, leaving the settings content squeezed into a narrow strip and partially off-screen.",
+      "After the fix, verified the desktop settings shell now renders `Your teams` with real workspace teams (`Mobile`, `Platform`, `Design`, `Support`, `Operations`, `Growth`, `Onboarding QA Team`) and saved evidence to `ralph/screenshots/qa/settings-001-desktop-post.png`.",
+      "Clicked the `Mobile` entry in the new `Your teams` section in Ever and confirmed the real team settings hub loaded in the content pane with General, Workflow, AI, and Danger zone sections.",
+      "Verified the post-fix mobile layout at `390x844`: the outer app sidebar is hidden on settings routes, the settings navigation and content stack vertically at full width, and the settings sidebar remains scrollable (`scrollHeight` greater than `clientHeight` with `overflowY: auto`). Saved evidence to `ralph/screenshots/qa/settings-001-mobile-post.png`.",
+      "Ran `make check`, `make test`, and the required full shared-layout regression suite `make test-e2e`; all passed (`6` Playwright E2E tests passed)."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "The settings shell omitted the required dynamic `Your teams` navigation section.",
+        "expected": "The settings sidebar should include a `Your teams` section populated from the signed-in workspace's teams, matching the PRD and the original product's settings layout.",
+        "actual": "Before the fix, the clone stopped at `Administration` and rendered no team settings links at all, even though the workspace had multiple teams available in the app shell.",
+        "reproduction": "1. Sign in to a workspace with multiple teams.\n2. Open `/settings/account/preferences`.\n3. Inspect the settings sidebar.\n4. Observe that the sidebar ends at `Administration` and does not show a `Your teams` section or any team settings links."
+      },
+      {
+        "severity": "major",
+        "description": "The settings layout was unusable on narrow screens because the app shell sidebar and settings sidebar rendered simultaneously.",
+        "expected": "On small screens, the settings route should remain readable and navigable without two fixed sidebars competing for the same viewport width.",
+        "actual": "Before the fix, the `244px` app shell sidebar and `220px` settings sidebar both stayed visible on `390px` viewports, leaving the content pane squeezed and partially off-screen.",
+        "reproduction": "1. Sign in and open `/settings/account/preferences`.\n2. Set the viewport to a mobile width such as `390x844`.\n3. Observe the app shell sidebar and settings sidebar rendered side by side.\n4. Note that the settings content shrinks into a narrow strip instead of using the full viewport."
+      }
+    ],
+    "fix_description": "Added app-shell context so the settings layout can render workspace team links, appended the dynamic `Your teams` section with nested-route active states, hid the outer app sidebar on mobile settings routes, and stacked the settings sidebar/content layout for narrow screens while preserving desktop behavior."
   }
 ]

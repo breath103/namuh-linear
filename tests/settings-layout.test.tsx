@@ -3,6 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import SettingsLayout from "@/app/(app)/settings/layout";
 
+vi.mock("@/app/(app)/app-shell", () => ({
+  useAppShellContext: () => ({
+    teams: [
+      { id: "team-1", name: "Engineering", key: "ENG" },
+      { id: "team-2", name: "Design", key: "DES" },
+    ],
+  }),
+}));
+
 // Track current pathname for tests
 let currentPathname = "/settings/account/preferences";
 
@@ -153,5 +162,29 @@ describe("Settings Layout Shell", () => {
 
     expect(screen.getByText("AI & Agents")).toBeInTheDocument();
     expect(screen.getByText("Integrations")).toBeInTheDocument();
+  });
+
+  it("renders the dynamic Your teams section", () => {
+    render(
+      <SettingsLayout>
+        <div>Content</div>
+      </SettingsLayout>,
+    );
+
+    expect(screen.getByText("Your teams")).toBeInTheDocument();
+    expect(screen.getByText("Engineering")).toBeInTheDocument();
+    expect(screen.getByText("Design")).toBeInTheDocument();
+  });
+
+  it("highlights the active team settings page from nested routes", () => {
+    currentPathname = "/settings/teams/ENG/general";
+    render(
+      <SettingsLayout>
+        <div>Content</div>
+      </SettingsLayout>,
+    );
+
+    const teamLink = screen.getByText("Engineering").closest("a");
+    expect(teamLink?.className).toContain("bg-[var(--color-surface-active)]");
   });
 });

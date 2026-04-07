@@ -8,7 +8,7 @@ import {
   OPEN_CREATE_ISSUE_FULLSCREEN_EVENT,
 } from "@/lib/command-palette";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -29,6 +29,12 @@ interface ShellContext {
   teamId: string;
   teamKey: string;
   teams: SidebarTeam[];
+}
+
+const AppShellContext = createContext<ShellContext | null>(null);
+
+export function useAppShellContext() {
+  return useContext(AppShellContext);
 }
 
 function getActiveTeamKey(pathname: string): string | null {
@@ -70,6 +76,7 @@ export function AppShell({
   teams,
 }: AppShellProps) {
   const pathname = usePathname();
+  const isSettingsRoute = pathname.startsWith("/settings");
   const [showCreateIssue, setShowCreateIssue] = useState(false);
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
   const [shellContext, setShellContext] = useState<ShellContext>({
@@ -242,32 +249,51 @@ export function AppShell({
   }, []);
 
   return (
-    <div className="flex h-screen bg-[var(--color-sidebar-bg)]">
-      <Sidebar
-        workspaceName={shellContext.workspaceName}
-        workspaceInitials={shellContext.workspaceInitials}
-        teamName={shellContext.teamName}
-        teamKey={shellContext.teamKey}
-        teams={shellContext.teams}
-        inboxUnreadCount={inboxUnreadCount}
-        onCreateIssue={() => setShowCreateIssue(true)}
-      />
-      <main className="flex-1 overflow-hidden p-2 pl-0">
-        <div className="h-full overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] transition-colors">
-          {children}
+    <AppShellContext.Provider value={shellContext}>
+      <div className="flex h-screen bg-[var(--color-sidebar-bg)]">
+        <div
+          data-testid="app-sidebar-shell"
+          className={isSettingsRoute ? "hidden md:block" : "block"}
+        >
+          <Sidebar
+            workspaceName={shellContext.workspaceName}
+            workspaceInitials={shellContext.workspaceInitials}
+            teamName={shellContext.teamName}
+            teamKey={shellContext.teamKey}
+            teams={shellContext.teams}
+            inboxUnreadCount={inboxUnreadCount}
+            onCreateIssue={() => setShowCreateIssue(true)}
+          />
         </div>
-      </main>
-      <CreateIssueModal
-        open={showCreateIssue}
-        onClose={() => setShowCreateIssue(false)}
-        teamId={shellContext.teamId}
-        teamKey={shellContext.teamKey}
-        teamName={shellContext.teamName}
-      />
-      <CommandPalette
-        teamKey={shellContext.teamKey}
-        workspaceId={shellContext.workspaceId}
-      />
-    </div>
+        <main
+          className={
+            isSettingsRoute
+              ? "flex-1 overflow-hidden p-0 md:p-2 md:pl-0"
+              : "flex-1 overflow-hidden p-2 pl-0"
+          }
+        >
+          <div
+            className={
+              isSettingsRoute
+                ? "h-full overflow-y-auto bg-[var(--color-content-bg)] transition-colors md:rounded-xl md:border md:border-[var(--color-border)]"
+                : "h-full overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] transition-colors"
+            }
+          >
+            {children}
+          </div>
+        </main>
+        <CreateIssueModal
+          open={showCreateIssue}
+          onClose={() => setShowCreateIssue(false)}
+          teamId={shellContext.teamId}
+          teamKey={shellContext.teamKey}
+          teamName={shellContext.teamName}
+        />
+        <CommandPalette
+          teamKey={shellContext.teamKey}
+          workspaceId={shellContext.workspaceId}
+        />
+      </div>
+    </AppShellContext.Provider>
   );
 }

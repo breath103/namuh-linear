@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppShellContext } from "@/app/(app)/app-shell";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -70,6 +71,10 @@ const sections: NavSection[] = [
   },
 ];
 
+function isActiveSettingsPath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 function SettingsSidebarLink({
   href,
   label,
@@ -107,11 +112,25 @@ export default function SettingsLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const shellContext = useAppShellContext();
+  const sectionsWithTeams =
+    shellContext?.teams && shellContext.teams.length > 0
+      ? [
+          ...sections,
+          {
+            title: "Your teams",
+            items: shellContext.teams.map((team) => ({
+              label: team.name,
+              href: `/settings/teams/${encodeURIComponent(team.key)}`,
+            })),
+          },
+        ]
+      : sections;
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col md:flex-row">
       {/* Settings sidebar */}
-      <aside className="w-[220px] shrink-0 overflow-y-auto border-r border-[var(--color-border)] px-3 py-4">
+      <aside className="max-h-[40vh] w-full shrink-0 overflow-y-auto border-b border-[var(--color-border)] px-3 py-4 md:max-h-none md:w-[220px] md:border-b-0 md:border-r">
         <Link
           href="/"
           className="mb-4 flex items-center gap-1.5 px-2 text-[13px] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
@@ -137,7 +156,7 @@ export default function SettingsLayout({
         </h2>
 
         <nav>
-          {sections.map((section) => (
+          {sectionsWithTeams.map((section) => (
             <div key={section.title}>
               <SectionTitle title={section.title} />
               {section.items.map((item) => (
@@ -145,7 +164,7 @@ export default function SettingsLayout({
                   key={item.href}
                   href={item.href}
                   label={item.label}
-                  active={pathname === item.href}
+                  active={isActiveSettingsPath(pathname, item.href)}
                 />
               ))}
             </div>
@@ -154,7 +173,9 @@ export default function SettingsLayout({
       </aside>
 
       {/* Content area */}
-      <main className="flex-1 overflow-y-auto p-8">{children}</main>
+      <main className="min-w-0 flex-1 overflow-y-auto p-4 md:p-8">
+        {children}
+      </main>
     </div>
   );
 }

@@ -343,6 +343,27 @@ describe("AppShell", () => {
     expect(contentDiv).not.toBeNull();
   });
 
+  it("hides the app sidebar on mobile settings routes", () => {
+    mockPathname = "/settings/account/preferences";
+
+    render(
+      <AppShell
+        workspaceName="WS"
+        workspaceInitials="WS"
+        teamName="Team"
+        teamId="team-1"
+        teamKey="T"
+        teams={[{ id: "team-1", name: "Team", key: "T" }]}
+      >
+        <div>Settings</div>
+      </AppShell>,
+    );
+
+    expect(screen.getByTestId("app-sidebar-shell").className).toContain(
+      "hidden md:block",
+    );
+  });
+
   it("updates the shell context for the active team route", async () => {
     mockPathname = "/team/QAX2/all";
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
