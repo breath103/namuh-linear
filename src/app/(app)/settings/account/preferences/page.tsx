@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { type AppTheme, getStoredTheme, setThemePreference } from "@/lib/theme";
+import { useEffect, useState } from "react";
 
 function SettingRow({
   label,
@@ -130,10 +131,19 @@ export default function PreferencesPage() {
   const [firstDay, setFirstDay] = useState("sunday");
   const [emoticons, setEmoticons] = useState(true);
   const [commentShortcut, setCommentShortcut] = useState("cmd-enter");
-  const [theme, setTheme] = useState("system");
+  const [theme, setTheme] = useState<AppTheme>("system");
   const [fontSize, setFontSize] = useState("default");
   const [pointerCursors, setPointerCursors] = useState(false);
   const [desktopApp, setDesktopApp] = useState(false);
+
+  useEffect(() => {
+    setTheme(getStoredTheme());
+  }, []);
+
+  function handleThemeChange(nextTheme: AppTheme) {
+    setTheme(nextTheme);
+    setThemePreference(nextTheme);
+  }
 
   return (
     <div className="max-w-[600px]">
@@ -203,19 +213,19 @@ export default function PreferencesPage() {
             label="System preference"
             variant="system"
             active={theme === "system"}
-            onClick={() => setTheme("system")}
+            onClick={() => handleThemeChange("system")}
           />
           <ThemeCard
             label="Light"
             variant="light"
             active={theme === "light"}
-            onClick={() => setTheme("light")}
+            onClick={() => handleThemeChange("light")}
           />
           <ThemeCard
             label="Dark"
             variant="dark"
             active={theme === "dark"}
-            onClick={() => setTheme("dark")}
+            onClick={() => handleThemeChange("dark")}
           />
         </div>
       </div>

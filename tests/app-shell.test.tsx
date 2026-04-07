@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Mock next/navigation
@@ -95,9 +96,36 @@ describe("Sidebar", () => {
     expect(screen.getByLabelText("Create issue")).toBeDefined();
   });
 
+  it("opens the workspace switcher menu", () => {
+    render(<Sidebar workspaceName="Acme Inc" workspaceInitials="AC" />);
+
+    fireEvent.click(screen.getByLabelText("Workspace switcher"));
+
+    expect(screen.getByText("Workspace settings")).toBeInTheDocument();
+    expect(screen.getAllByText("Acme Inc").length).toBeGreaterThan(0);
+  });
+
   it("has help button", () => {
     render(<Sidebar />);
     expect(screen.getByLabelText("Help")).toBeDefined();
+  });
+
+  it("opens the help menu", () => {
+    render(<Sidebar />);
+
+    fireEvent.click(screen.getByLabelText("Help"));
+
+    expect(screen.getByText("Docs")).toBeInTheDocument();
+    expect(screen.getByText("Keyboard shortcuts")).toBeInTheDocument();
+  });
+
+  it("calls onCreateIssue when the sidebar create button is clicked", () => {
+    const onCreateIssue = vi.fn();
+
+    render(<Sidebar onCreateIssue={onCreateIssue} />);
+    fireEvent.click(screen.getByLabelText("Create issue"));
+
+    expect(onCreateIssue).toHaveBeenCalledTimes(1);
   });
 
   it("renders More button in workspace section", () => {
@@ -144,6 +172,26 @@ describe("Sidebar", () => {
     const issuesLink = screen.getByText("Issues").closest("a");
     expect(issuesLink?.getAttribute("href")).toBe("/team/ENG/all");
   });
+
+  it("keeps Issues highlighted on issue detail routes", () => {
+    mockPathname = "/issue/abc-123";
+
+    render(<Sidebar teamKey="ENG" />);
+
+    expect(screen.getByText("Issues").closest("a")?.className).toContain(
+      "bg-[var(--color-surface-active)]",
+    );
+  });
+
+  it("keeps workspace Projects highlighted on project detail routes", () => {
+    mockPathname = "/project/roadmap";
+
+    render(<Sidebar teamKey="ENG" />);
+
+    expect(
+      screen.getAllByText("Projects")[0].closest("a")?.className,
+    ).toContain("bg-[var(--color-surface-active)]");
+  });
 });
 
 describe("AppShell", () => {
@@ -159,6 +207,7 @@ describe("AppShell", () => {
         workspaceName="Test"
         workspaceInitials="TE"
         teamName="Eng"
+        teamId="team-1"
         teamKey="ENG"
       >
         <div>Content</div>
@@ -174,6 +223,7 @@ describe("AppShell", () => {
         workspaceName="WS"
         workspaceInitials="WS"
         teamName="Team"
+        teamId="team-1"
         teamKey="T"
       >
         <h1>Hello World</h1>
@@ -188,6 +238,7 @@ describe("AppShell", () => {
         workspaceName="WS"
         workspaceInitials="WS"
         teamName="Team"
+        teamId="team-1"
         teamKey="T"
       >
         <div>Test</div>
@@ -205,6 +256,7 @@ describe("AppShell", () => {
         workspaceName: "QA Fix 20260407 1644",
         workspaceInitials: "QA",
         teamName: "QA Fix 20260407 1644",
+        teamId: "team-id-2",
         teamKey: "QAX2",
       }),
     } as Response);
@@ -214,6 +266,7 @@ describe("AppShell", () => {
         workspaceName="Onboarding QA Team"
         workspaceInitials="ON"
         teamName="Onboarding QA Team"
+        teamId="team-id-1"
         teamKey="QAX"
       >
         <div>Content</div>

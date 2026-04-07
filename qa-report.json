@@ -394,5 +394,59 @@
       }
     ],
     "fix_description": "Mounted working issue creation flows for the issue/board/triage empty states, added the missing project creation UI plus `POST /api/projects`, and fixed the list/board hook-order crash exposed by the first created issue. `qa_pass` is now true for onboarding-003; the remaining full-E2E failures are the pre-existing unrelated command-palette specs."
+  },
+  {
+    "feature_id": "layout-001",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 570 unit tests passed before the layout-001 fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the app still loaded successfully on `http://localhost:3015`.",
+      "Compared the clone against the original Linear shell in Ever and confirmed the original product exposes an interactive workspace menu, global create-issue action, and help menu from the sidebar.",
+      "Reproduced five shell regressions in the live clone before the fix: the top-left workspace area was non-interactive, the global `Create issue` button did nothing, the bottom-left help button exposed no menu, the preferences theme selector did not change the app shell, and sidebar highlighting dropped on `/issue/:id` and `/project/:slug` routes.",
+      "Added regression coverage for the new shell interactions, persisted theme selection, and detail-route active states.",
+      "Ran `make check && make test` after the fixes; typecheck, Biome, and all 576 unit tests passed.",
+      "Ran full `make test-e2e` because the fix touched shared layout and theme code; smoke still passed, and the only failing specs were the pre-existing unrelated command-palette Playwright tests that start from protected routes without an authenticated session and land on `/login`.",
+      "Re-verified the fixed shell manually in Ever with an authenticated session: the workspace switcher opens with `Workspace settings`, the global create button opens the issue modal, search still opens the command palette, the help menu opens with docs/shortcuts/settings entries, light theme applies across the shell, and active highlighting now persists on `/issue/6c3e1ba3-5a9f-42ad-849b-e718a3f73d3c` and `/project/qa-empty-state-project`.",
+      "Saved QA evidence to `ralph/screenshots/qa/layout-001-attempt-1-app-shell-light.png` and `ralph/screenshots/qa/layout-001-attempt-1-workspace-switcher.png`."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "The top-left workspace trigger was static text instead of an interactive workspace switcher.",
+        "expected": "The app shell should expose an interactive workspace control in the top-left that opens workspace actions, matching Linear's sidebar pattern.",
+        "actual": "The clone rendered only a non-clickable workspace badge and name with no switcher behavior.",
+        "reproduction": "1. Open any authenticated app page such as `/team/ONB/all`.\n2. Inspect the top-left workspace area.\n3. Observe that the pre-fix clone provided no interactive control or menu."
+      },
+      {
+        "severity": "major",
+        "description": "The global sidebar `Create issue` button was inert.",
+        "expected": "Clicking the `+` button in the shell should open the issue-creation modal from anywhere in the authenticated app.",
+        "actual": "The button rendered in the sidebar, but clicking it left the page unchanged and opened no dialog.",
+        "reproduction": "1. Open an authenticated shell route such as `/team/ONB/all`.\n2. Click the top-right `Create issue` button in the sidebar.\n3. Observe that nothing opens before the fix."
+      },
+      {
+        "severity": "major",
+        "description": "The bottom-left help affordance had no menu behind it.",
+        "expected": "The shell should expose a working help menu from the bottom-left button, similar to Linear.",
+        "actual": "The clone rendered the help icon, but it exposed no help menu or actions.",
+        "reproduction": "1. Open an authenticated shell route.\n2. Click the bottom-left help button.\n3. Observe that no menu appears before the fix."
+      },
+      {
+        "severity": "major",
+        "description": "Theme selection in Preferences did not apply to the shell or persist globally.",
+        "expected": "Selecting `Light`, `Dark`, or `System preference` in `/settings/account/preferences` should update the shell theme and persist the preference.",
+        "actual": "The selection only changed local component state; the root document stayed hard-coded to dark mode and the sidebar/content colors did not change.",
+        "reproduction": "1. Open `/settings/account/preferences`.\n2. Click `Light`.\n3. Observe that the HTML root retains the dark class and the shell colors remain dark before the fix."
+      },
+      {
+        "severity": "minor",
+        "description": "Sidebar highlighting disappeared on issue and project detail routes.",
+        "expected": "When viewing issue details or project details, the corresponding sidebar section should remain highlighted.",
+        "actual": "On `/issue/:id` and `/project/:slug`, no relevant sidebar link stayed active before the fix.",
+        "reproduction": "1. Open `/issue/6c3e1ba3-5a9f-42ad-849b-e718a3f73d3c` and inspect the sidebar.\n2. Open `/project/qa-empty-state-project` and inspect the sidebar.\n3. Observe that the relevant `Issues` or `Projects` link is not highlighted before the fix."
+      }
+    ],
+    "fix_description": "Made the workspace trigger and help control real menus, wired the shell `Create issue` button to the shared issue modal, moved the shell onto theme tokens with persisted global theme application, and fixed active-route highlighting for issue/project detail pages. `qa_pass` is now true for layout-001; the remaining full-E2E failures are the pre-existing unrelated command-palette specs that need authenticated test setup."
   }
 ]

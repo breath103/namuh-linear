@@ -2,13 +2,45 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface SidebarProps {
   workspaceName?: string;
   workspaceInitials?: string;
   teamName?: string;
   teamKey?: string;
+  onCreateIssue?: () => void;
+}
+
+function isWorkspaceProjectsRoute(pathname: string) {
+  return pathname === "/projects" || pathname.startsWith("/project/");
+}
+
+function isWorkspaceViewsRoute(pathname: string) {
+  return pathname === "/views" || pathname.startsWith("/views/");
+}
+
+function isTeamIssuesRoute(pathname: string, teamKey: string) {
+  return (
+    pathname === `/team/${teamKey}/all` ||
+    pathname === `/team/${teamKey}/board` ||
+    pathname.startsWith("/issue/") ||
+    pathname.startsWith(`/team/${teamKey}/issue/`)
+  );
+}
+
+function isTeamProjectsRoute(pathname: string, teamKey: string) {
+  return (
+    pathname === `/team/${teamKey}/projects` ||
+    pathname.startsWith(`/team/${teamKey}/projects/`)
+  );
+}
+
+function isTeamViewsRoute(pathname: string, teamKey: string) {
+  return (
+    pathname === `/team/${teamKey}/views` ||
+    pathname.startsWith(`/team/${teamKey}/views/`)
+  );
 }
 
 function SidebarLink({
@@ -33,8 +65,8 @@ function SidebarLink({
         indent ? "ml-4" : ""
       } ${
         active
-          ? "bg-[#1f1f23] text-white"
-          : "text-[#b0b5c0] hover:bg-[#1a1a1e] hover:text-white"
+          ? "bg-[var(--color-surface-active)] text-[var(--color-text-primary)]"
+          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
       }`}
     >
       <span className="flex h-4 w-4 shrink-0 items-center justify-center">
@@ -42,7 +74,9 @@ function SidebarLink({
       </span>
       <span className="flex-1 truncate">{label}</span>
       {badge != null && badge > 0 && (
-        <span className="text-[11px] text-[#6b6f76]">{badge}</span>
+        <span className="text-[11px] text-[var(--color-text-tertiary)]">
+          {badge}
+        </span>
       )}
     </Link>
   );
@@ -63,7 +97,7 @@ function SectionHeader({
     <button
       type="button"
       onClick={onToggle}
-      className="mt-4 mb-0.5 flex w-full items-center gap-1 px-2 text-[11px] font-medium uppercase tracking-wider text-[#6b6f76] hover:text-[#9ca3af]"
+      className="mb-0.5 mt-4 flex w-full items-center gap-1 px-2 text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-secondary)]"
     >
       {collapsible && (
         <svg
@@ -90,28 +124,87 @@ export function Sidebar({
   workspaceInitials = "W",
   teamName = "Engineering",
   teamKey = "ENG",
+  onCreateIssue,
 }: SidebarProps) {
   const pathname = usePathname();
   const [teamExpanded, setTeamExpanded] = useState(true);
   const [moreExpanded, setMoreExpanded] = useState(false);
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
+  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  useEffect(() => {
+    void pathname;
+    setWorkspaceMenuOpen(false);
+    setHelpMenuOpen(false);
+  }, [pathname]);
 
   return (
-    <aside className="flex h-screen w-[244px] shrink-0 flex-col bg-[#090909] px-3 py-2.5">
-      {/* Workspace header */}
+    <aside className="flex h-screen w-[244px] shrink-0 flex-col bg-[var(--color-sidebar-bg)] px-3 py-2.5 transition-colors">
       <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 rounded-md px-1 py-1">
-          <div className="flex h-5 w-5 items-center justify-center rounded bg-[#5E6AD2] text-[10px] font-bold text-white">
-            {workspaceInitials}
-          </div>
-          <span className="max-w-[140px] truncate text-[13px] font-medium text-white">
-            {workspaceName}
-          </span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          {/* Search button — opens command palette */}
+        <div className="relative">
           <button
             type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[#6b6f76] transition-colors hover:bg-[#1a1a1e] hover:text-white"
+            aria-label="Workspace switcher"
+            aria-expanded={workspaceMenuOpen}
+            onClick={() => {
+              setWorkspaceMenuOpen(!workspaceMenuOpen);
+              setHelpMenuOpen(false);
+            }}
+            className="flex items-center gap-2 rounded-md px-1 py-1 text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+          >
+            <div className="flex h-5 w-5 items-center justify-center rounded bg-[var(--color-accent)] text-[10px] font-bold text-white">
+              {workspaceInitials}
+            </div>
+            <span className="max-w-[124px] truncate text-[13px] font-medium">
+              {workspaceName}
+            </span>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`text-[var(--color-text-secondary)] transition-transform ${
+                workspaceMenuOpen ? "rotate-180" : ""
+              }`}
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+          {workspaceMenuOpen && (
+            <div className="absolute left-0 top-full z-20 mt-2 min-w-[220px] rounded-lg border border-[var(--color-border)] bg-[var(--color-content-bg)] p-1 shadow-2xl">
+              <div className="px-3 py-2 text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-tertiary)]">
+                Workspace
+              </div>
+              <button
+                type="button"
+                disabled
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[13px] text-[var(--color-text-primary)]"
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded bg-[var(--color-accent)] text-[10px] font-bold text-white">
+                  {workspaceInitials}
+                </span>
+                <span className="truncate">{workspaceName}</span>
+              </button>
+              <Link
+                href="/settings/workspace"
+                className="block rounded-md px-3 py-2 text-[13px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+              >
+                Workspace settings
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
             aria-label="Search"
             onClick={() =>
               document.dispatchEvent(
@@ -138,11 +231,11 @@ export function Sidebar({
               <path d="m21 21-4.3-4.3" />
             </svg>
           </button>
-          {/* Create issue button */}
           <button
             type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[#6b6f76] transition-colors hover:bg-[#1a1a1e] hover:text-white"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
             aria-label="Create issue"
+            onClick={onCreateIssue}
           >
             <svg
               width="15"
@@ -162,13 +255,11 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto">
-        {/* Personal */}
         <SidebarLink
           href="/inbox"
           label="Inbox"
-          active={pathname === "/inbox"}
+          active={pathname.startsWith("/inbox")}
           icon={
             <svg
               width="15"
@@ -210,12 +301,11 @@ export function Sidebar({
           }
         />
 
-        {/* Workspace */}
         <SectionHeader label="Workspace" />
         <SidebarLink
           href="/projects"
           label="Projects"
-          active={pathname.startsWith("/projects")}
+          active={isWorkspaceProjectsRoute(pathname)}
           icon={
             <svg
               width="15"
@@ -238,7 +328,7 @@ export function Sidebar({
         <SidebarLink
           href="/views"
           label="Views"
-          active={pathname.startsWith("/views")}
+          active={isWorkspaceViewsRoute(pathname)}
           icon={
             <svg
               width="15"
@@ -258,11 +348,10 @@ export function Sidebar({
           }
         />
 
-        {/* More */}
         <button
           type="button"
           onClick={() => setMoreExpanded(!moreExpanded)}
-          className="flex w-full items-center gap-2.5 rounded-md px-2 py-[5px] text-[13px] text-[#b0b5c0] transition-colors hover:bg-[#1a1a1e] hover:text-white"
+          className="flex w-full items-center gap-2.5 rounded-md px-2 py-[5px] text-[13px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
         >
           <span className="flex h-4 w-4 shrink-0 items-center justify-center">
             <svg
@@ -334,7 +423,6 @@ export function Sidebar({
           </div>
         )}
 
-        {/* Your teams */}
         <SectionHeader
           label="Your teams"
           collapsible
@@ -343,8 +431,8 @@ export function Sidebar({
         />
         {teamExpanded && (
           <>
-            <div className="flex items-center gap-2 rounded-md px-2 py-[5px] text-[13px] font-medium text-white">
-              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#5E6AD2] text-[8px] font-bold text-white">
+            <div className="flex items-center gap-2 rounded-md px-2 py-[5px] text-[13px] font-medium text-[var(--color-text-primary)]">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[var(--color-accent)] text-[8px] font-bold text-white">
                 {teamKey.charAt(0)}
               </span>
               <span className="truncate">{teamName}</span>
@@ -374,10 +462,7 @@ export function Sidebar({
             <SidebarLink
               href={`/team/${teamKey}/all`}
               label="Issues"
-              active={
-                pathname === `/team/${teamKey}/all` ||
-                pathname === `/team/${teamKey}/board`
-              }
+              active={isTeamIssuesRoute(pathname, teamKey)}
               indent
               icon={
                 <svg
@@ -400,7 +485,7 @@ export function Sidebar({
             <SidebarLink
               href={`/team/${teamKey}/projects`}
               label="Projects"
-              active={pathname === `/team/${teamKey}/projects`}
+              active={isTeamProjectsRoute(pathname, teamKey)}
               indent
               icon={
                 <svg
@@ -424,7 +509,7 @@ export function Sidebar({
             <SidebarLink
               href={`/team/${teamKey}/views`}
               label="Views"
-              active={pathname === `/team/${teamKey}/views`}
+              active={isTeamViewsRoute(pathname, teamKey)}
               indent
               icon={
                 <svg
@@ -447,7 +532,6 @@ export function Sidebar({
           </>
         )}
 
-        {/* Try section */}
         <SectionHeader label="Try" />
         <SidebarLink
           href="/initiatives"
@@ -501,12 +585,44 @@ export function Sidebar({
         />
       </nav>
 
-      {/* Bottom help */}
-      <div className="mt-auto pt-2">
+      <div className="relative mt-auto pt-2">
+        {helpMenuOpen && (
+          <div className="absolute bottom-9 left-0 z-20 min-w-[220px] rounded-lg border border-[var(--color-border)] bg-[var(--color-content-bg)] p-1 shadow-2xl">
+            <a
+              href="https://linear.app/docs"
+              target="_blank"
+              rel="noreferrer"
+              className="block rounded-md px-3 py-2 text-[13px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+            >
+              Docs
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                setShortcutsOpen(true);
+                setHelpMenuOpen(false);
+              }}
+              className="block w-full rounded-md px-3 py-2 text-left text-[13px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+            >
+              Keyboard shortcuts
+            </button>
+            <Link
+              href="/settings"
+              className="block rounded-md px-3 py-2 text-[13px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+            >
+              Settings
+            </Link>
+          </div>
+        )}
         <button
           type="button"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-[#6b6f76] transition-colors hover:bg-[#1a1a1e] hover:text-white"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
           aria-label="Help"
+          aria-expanded={helpMenuOpen}
+          onClick={() => {
+            setHelpMenuOpen(!helpMenuOpen);
+            setWorkspaceMenuOpen(false);
+          }}
         >
           <svg
             width="15"
@@ -525,6 +641,59 @@ export function Sidebar({
           </svg>
         </button>
       </div>
+
+      {shortcutsOpen && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-[420px] rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] p-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[16px] font-semibold text-[var(--color-text-primary)]">
+                Keyboard shortcuts
+              </h2>
+              <button
+                type="button"
+                aria-label="Close shortcuts"
+                onClick={() => setShortcutsOpen(false)}
+                className="rounded-md p-1 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="mt-4 space-y-3 text-[13px] text-[var(--color-text-secondary)]">
+              <div className="flex items-center justify-between">
+                <span>Search</span>
+                <kbd className="rounded border border-[var(--color-border)] px-2 py-1 text-[var(--color-text-primary)]">
+                  Cmd+K
+                </kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Create issue</span>
+                <kbd className="rounded border border-[var(--color-border)] px-2 py-1 text-[var(--color-text-primary)]">
+                  C
+                </kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Open help</span>
+                <kbd className="rounded border border-[var(--color-border)] px-2 py-1 text-[var(--color-text-primary)]">
+                  /
+                </kbd>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

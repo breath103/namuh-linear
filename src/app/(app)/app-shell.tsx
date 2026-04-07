@@ -1,6 +1,7 @@
 "use client";
 
 import { CommandPalette } from "@/components/command-palette";
+import { CreateIssueModal } from "@/components/create-issue-modal";
 import { Sidebar } from "@/components/sidebar";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,6 +11,7 @@ interface AppShellProps {
   workspaceName: string;
   workspaceInitials: string;
   teamName: string;
+  teamId: string;
   teamKey: string;
 }
 
@@ -17,6 +19,7 @@ interface ShellContext {
   workspaceName: string;
   workspaceInitials: string;
   teamName: string;
+  teamId: string;
   teamKey: string;
 }
 
@@ -39,13 +42,16 @@ export function AppShell({
   workspaceName,
   workspaceInitials,
   teamName,
+  teamId,
   teamKey,
 }: AppShellProps) {
   const pathname = usePathname();
+  const [showCreateIssue, setShowCreateIssue] = useState(false);
   const [shellContext, setShellContext] = useState<ShellContext>({
     workspaceName,
     workspaceInitials,
     teamName,
+    teamId,
     teamKey,
   });
 
@@ -54,6 +60,7 @@ export function AppShell({
       workspaceName,
       workspaceInitials,
       teamName,
+      teamId,
       teamKey,
     };
     const activeTeamKey = getActiveTeamKey(pathname);
@@ -87,21 +94,29 @@ export function AppShell({
     return () => {
       cancelled = true;
     };
-  }, [pathname, teamKey, teamName, workspaceInitials, workspaceName]);
+  }, [pathname, teamId, teamKey, teamName, workspaceInitials, workspaceName]);
 
   return (
-    <div className="flex h-screen bg-[#090909]">
+    <div className="flex h-screen bg-[var(--color-sidebar-bg)]">
       <Sidebar
         workspaceName={shellContext.workspaceName}
         workspaceInitials={shellContext.workspaceInitials}
         teamName={shellContext.teamName}
         teamKey={shellContext.teamKey}
+        onCreateIssue={() => setShowCreateIssue(true)}
       />
       <main className="flex-1 overflow-hidden p-2 pl-0">
-        <div className="h-full overflow-y-auto rounded-xl bg-[#0f0f11] border border-[#1c1e21]">
+        <div className="h-full overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] transition-colors">
           {children}
         </div>
       </main>
+      <CreateIssueModal
+        open={showCreateIssue}
+        onClose={() => setShowCreateIssue(false)}
+        teamId={shellContext.teamId}
+        teamKey={shellContext.teamKey}
+        teamName={shellContext.teamName}
+      />
       <CommandPalette teamKey={shellContext.teamKey} />
     </div>
   );

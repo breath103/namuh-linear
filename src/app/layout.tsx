@@ -1,3 +1,4 @@
+import { ThemeInitializer } from "@/components/theme-initializer";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -21,7 +22,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`dark ${inter.variable}`}>
-      <body className="bg-[#090909] font-sans text-gray-100 min-h-screen antialiased">
+      <body className="min-h-screen bg-[var(--color-sidebar-bg)] font-sans text-[var(--color-text-primary)] antialiased transition-colors">
+        <ThemeInitializer />
         {children}
       </body>
     </html>

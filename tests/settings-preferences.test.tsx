@@ -1,5 +1,5 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import PreferencesPage from "@/app/(app)/settings/account/preferences/page";
 
@@ -11,6 +11,35 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Account Preferences Page", () => {
+  beforeEach(() => {
+    const storage = new Map<string, string>();
+
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation(() => ({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
+    Object.defineProperty(window, "localStorage", {
+      writable: true,
+      value: {
+        getItem: vi.fn((key: string) => storage.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => {
+          storage.set(key, value);
+        }),
+        removeItem: vi.fn((key: string) => {
+          storage.delete(key);
+        }),
+        clear: vi.fn(() => {
+          storage.clear();
+        }),
+      },
+    });
+    document.documentElement.className = "";
+  });
+
   afterEach(() => {
     cleanup();
   });
@@ -75,5 +104,14 @@ describe("Account Preferences Page", () => {
     render(<PreferencesPage />);
     expect(screen.getByText("Desktop application")).toBeInTheDocument();
     expect(screen.getByText("Open in desktop app")).toBeInTheDocument();
+  });
+
+  it("applies and persists the selected theme", () => {
+    render(<PreferencesPage />);
+
+    fireEvent.click(screen.getByText("Light"));
+
+    expect(window.localStorage.getItem("namuh-linear-theme")).toBe("light");
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
 });

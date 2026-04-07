@@ -38,19 +38,20 @@ export default async function AppLayout({
 
   // Get first team
   const teams = await db
-    .select({ name: team.name, key: team.key })
+    .select({ id: team.id, name: team.name, key: team.key })
     .from(team)
     .where(eq(team.workspaceId, ws.workspaceId))
     .orderBy(desc(team.createdAt))
     .limit(1);
 
-  const firstTeam = teams[0] ?? { name: "Team", key: "TEAM" };
+  const firstTeam = teams[0] ?? { id: "", name: "Team", key: "TEAM" };
 
   return (
     <AppShell
       workspaceName={ws.workspaceName}
       workspaceInitials={ws.workspaceName.substring(0, 2).toUpperCase()}
       teamName={firstTeam.name}
+      teamId={firstTeam.id}
       teamKey={firstTeam.key}
     >
       {children}
