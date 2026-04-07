@@ -93,6 +93,28 @@ describe("Sidebar", () => {
     expect(screen.getByLabelText("Help")).toBeDefined();
   });
 
+  it("renders More button in workspace section", () => {
+    render(<Sidebar />);
+    expect(screen.getByText("More")).toBeDefined();
+  });
+
+  it("toggles More menu to show Settings and Teams", () => {
+    render(<Sidebar />);
+    expect(screen.queryByText("Settings")).toBeNull();
+
+    fireEvent.click(screen.getByText("More"));
+    expect(screen.getByText("Settings")).toBeDefined();
+    expect(screen.getByText("Teams")).toBeDefined();
+
+    fireEvent.click(screen.getByText("More"));
+    expect(screen.queryByText("Settings")).toBeNull();
+  });
+
+  it("renders Workspace section header", () => {
+    render(<Sidebar workspaceName="Acme Inc" />);
+    expect(screen.getByText("Workspace")).toBeDefined();
+  });
+
   it("toggles team section collapse", () => {
     render(<Sidebar />);
     // Team section should be expanded by default

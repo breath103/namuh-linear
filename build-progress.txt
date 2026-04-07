@@ -235,3 +235,23 @@ Date: 2026-04-07
 - Sidebar uses `usePathname()` for active state instead of server-side props
 - Team section is collapsible to match Linear's UX
 - SVGs inside labeled buttons use `aria-hidden` instead of duplicate aria-labels
+
+## Iteration 8 — layout-002: Complete Sidebar Navigation
+Date: 2026-04-07
+
+### What was built
+- Added "More" expandable menu in Workspace section (Settings, Teams links)
+- Workspace section now has: Projects, Views, More (collapsible)
+- All sections match Linear's sidebar: Personal, Workspace, Your teams, Try
+- 3 new tests: More button renders, More toggle shows/hides Settings+Teams, Workspace section header
+
+### Test results
+- 18 unit tests passing (tests/app-shell.test.tsx, +3 new)
+- 160 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/components/sidebar.tsx — added More expandable menu with Settings and Teams
+- tests/app-shell.test.tsx — added 3 tests for More menu and Workspace header
+- prd.json — marked layout-002 build_pass: true

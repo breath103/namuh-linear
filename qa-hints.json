@@ -136,5 +136,18 @@
       "Dark/light theme switching",
       "Workspace switcher interaction"
     ]
+  },
+  {
+    "feature_id": "layout-002",
+    "tests_written": [
+      "More button renders in workspace section",
+      "More toggle shows Settings and Teams",
+      "Workspace section header renders"
+    ],
+    "needs_deeper_qa": [
+      "More menu visual alignment with Linear",
+      "Multiple team sections when user has multiple teams",
+      "Sidebar scroll with many items"
+    ]
   }
 ]
