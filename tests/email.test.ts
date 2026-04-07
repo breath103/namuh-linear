@@ -70,6 +70,24 @@ describe("Email utilities", () => {
     expect(cmd.Content.Simple.Body.Text).toBeUndefined();
   });
 
+  it("sendEmail falls back to the verified sender domain when env is unset", async () => {
+    vi.unstubAllEnvs();
+    vi.stubEnv("AWS_REGION", "us-east-1");
+    vi.resetModules();
+    emailModule = await import("@/lib/email");
+
+    await emailModule.sendEmail({
+      to: "user@example.com",
+      subject: "Fallback Sender",
+      html: "<p>Hello</p>",
+    });
+
+    expect(sendMock).toHaveBeenCalledOnce();
+    expect(getLastSentCommand()).toMatchObject({
+      FromEmailAddress: "noreply@foreverbrowsing.com",
+    });
+  });
+
   it("sendMagicLinkEmail includes code and link", async () => {
     await emailModule.sendMagicLinkEmail(
       "user@example.com",

@@ -1,8 +1,7 @@
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 
 const region = process.env.AWS_REGION ?? "us-east-1";
-const senderEmail =
-  process.env.SENDER_EMAIL ?? "noreply@namuh-linear.example.com";
+const senderEmail = process.env.SENDER_EMAIL ?? "noreply@foreverbrowsing.com";
 
 export const ses = new SESv2Client({ region });
 
