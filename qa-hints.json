@@ -578,5 +578,29 @@
       "Dark/light theme consistency in settings",
       "Sidebar scroll behavior with many sections"
     ]
+  },
+  {
+    "feature_id": "settings-002",
+    "tests_written": [
+      "Renders Preferences heading",
+      "Renders General section with home view setting",
+      "Renders Display names combobox",
+      "Renders First day of week setting",
+      "Renders Convert emoticons toggle",
+      "Renders Send comment shortcut setting",
+      "Renders Interface & theme section",
+      "Renders theme selector with System/Light/Dark options",
+      "Renders Font size setting",
+      "Renders Pointer cursors toggle",
+      "Renders Desktop application section"
+    ],
+    "needs_deeper_qa": [
+      "Theme switching actually changes app theme",
+      "Settings persistence to database/API",
+      "Sidebar customize button functionality",
+      "Coding tools link navigation",
+      "Combobox keyboard interaction",
+      "Toggle state persistence across page loads"
+    ]
   }
 ]

@@ -1002,3 +1002,34 @@ Date: 2026-04-07
 - Placeholder pages created for sub-pages that will be built in later features
 - Section headers use uppercase tracking-wider style matching Linear's settings UI
 - Active state uses same CSS variable pattern as rest of app
+
+## Iteration 31 — settings-002: Account Preferences Page
+Date: 2026-04-07
+
+### What was built
+- Account Preferences page (`src/app/(app)/settings/account/preferences/page.tsx`) with:
+  - General section: Default home view, Display names, First day of week comboboxes
+  - Convert emoticons toggle (checked by default)
+  - Send comment shortcut combobox (Cmd+Enter / Enter)
+  - Interface & theme section with theme preview cards (System/Light/Dark)
+  - Font size combobox
+  - Use pointer cursors toggle
+  - Desktop application section with Open in desktop app toggle
+- Reusable components: SettingRow, Select, Toggle, ThemeCard, SectionHeader
+
+### Test results
+- 11 unit tests passing (tests/settings-preferences.test.tsx)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/app/(app)/settings/account/preferences/page.tsx — full preferences page
+- tests/settings-preferences.test.tsx — new unit test file (11 tests)
+- prd.json — marked settings-002 build_pass: true
+- qa-hints.json — added settings-002 QA hints
+
+### Decisions
+- Settings are client-side state only for now (no API persistence yet)
+- Theme cards use gradient preview for System, solid colors for Light/Dark
+- Reusable SettingRow component for consistent layout across settings pages
+- Toggle component uses role="switch" for accessibility
