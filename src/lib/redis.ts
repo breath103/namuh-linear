@@ -25,6 +25,32 @@ export const redis = createRedisClient();
 /** Dedicated subscriber client (Redis requires separate connections for pub/sub) */
 export const redisSub = createRedisClient();
 
+const subscriptionHandlers = new Map<
+  string,
+  Set<(message: Record<string, unknown>) => void>
+>();
+let subscriberListenerRegistered = false;
+
+function ensureSubscriberListener(): void {
+  if (subscriberListenerRegistered) {
+    return;
+  }
+
+  redisSub.on("message", (channel, rawMessage) => {
+    const handlers = subscriptionHandlers.get(channel);
+    if (!handlers || handlers.size === 0) {
+      return;
+    }
+
+    const message = JSON.parse(rawMessage) as Record<string, unknown>;
+    for (const handler of handlers) {
+      handler(message);
+    }
+  });
+
+  subscriberListenerRegistered = true;
+}
+
 // ─── Cache helpers ───────────────────────────────────────────────────
 
 const DEFAULT_TTL = 300; // 5 minutes
@@ -48,10 +74,23 @@ export async function cacheDel(key: string): Promise<void> {
 }
 
 export async function cacheDelPattern(pattern: string): Promise<void> {
-  const keys = await redis.keys(pattern);
-  if (keys.length > 0) {
-    await redis.del(...keys);
-  }
+  let cursor = "0";
+
+  do {
+    const [nextCursor, keys] = await redis.scan(
+      cursor,
+      "MATCH",
+      pattern,
+      "COUNT",
+      100,
+    );
+
+    if (keys.length > 0) {
+      await redis.del(...keys);
+    }
+
+    cursor = nextCursor;
+  } while (cursor !== "0");
 }
 
 // ─── Pub/Sub helpers ─────────────────────────────────────────────────
@@ -67,14 +106,19 @@ export async function subscribe(
   channel: string,
   handler: (message: Record<string, unknown>) => void,
 ): Promise<void> {
+  ensureSubscriberListener();
+
+  const handlers = subscriptionHandlers.get(channel);
+  if (handlers) {
+    handlers.add(handler);
+    return;
+  }
+
+  subscriptionHandlers.set(channel, new Set([handler]));
   await redisSub.subscribe(channel);
-  redisSub.on("message", (ch, msg) => {
-    if (ch === channel) {
-      handler(JSON.parse(msg));
-    }
-  });
 }
 
 export async function unsubscribe(channel: string): Promise<void> {
+  subscriptionHandlers.delete(channel);
   await redisSub.unsubscribe(channel);
 }

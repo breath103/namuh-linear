@@ -14,5 +14,28 @@
     ],
     "bugs_found": [],
     "fix_description": "No infra-001 schema bug required fixing. I fixed pre-existing QA blockers in unit tests and empty-state expectations so the required verification commands could run to completion."
+  },
+  {
+    "feature_id": "infra-002",
+    "attempt": 1,
+    "status": "partial",
+    "tested_steps": [
+      "Ran `make test`; all 532 unit tests passed before the Redis-specific fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the clone loaded successfully on http://localhost:3015.",
+      "Opened the clone with Ever and captured a snapshot of the login screen to confirm the app is reachable while Redis is unused by the current route.",
+      "Verified `.env` and the process environment do not expose `REDIS_URL`, so the app has no configured Redis endpoint for real infrastructure testing.",
+      "Queried AWS with `aws elasticache describe-cache-clusters --cache-cluster-id namuh-linear-redis --region us-east-1 --show-cache-node-info`; AWS returned `CacheClusterNotFound`, confirming the app-specific ElastiCache cluster is not provisioned.",
+      "Ran a live Redis integration probe against a real Redis server on `redis://127.0.0.1:6380`; cache set/get, pub/sub, unsubscribe, and wildcard invalidation all worked after the Redis helper fixes."
+    ],
+    "bugs_found": [
+      {
+        "severity": "critical",
+        "description": "The clone does not have a provisioned or configured app-specific Redis backend for infra-002.",
+        "expected": "A reachable `namuh-linear` Redis/ElastiCache instance should exist and `REDIS_URL` should be configured so the clone can use real caching and pub/sub.",
+        "actual": "`.env` has no `REDIS_URL`, the shell environment has no `REDIS_URL`, and AWS reports `CacheClusterNotFound` for `namuh-linear-redis`.",
+        "reproduction": "1. Run `env | rg '^REDIS_URL='` and inspect `.env` for `REDIS_URL`.\n2. Run `aws elasticache describe-cache-clusters --cache-cluster-id namuh-linear-redis --region us-east-1 --show-cache-node-info`.\n3. Observe the missing env var and the AWS `CacheClusterNotFound` response."
+      }
+    ],
+    "fix_description": "Fixed two Redis helper bugs discovered during QA: replaced wildcard invalidation based on blocking `KEYS` with cursor-based `SCAN`, and deduplicated pub/sub message listeners so repeated subscriptions do not leak handlers. `qa_pass` remains false because real `namuh-linear` ElastiCache provisioning/configuration is still missing."
   }
 ]
