@@ -485,5 +485,27 @@
       "Keyboard shortcut N+I for creating initiatives",
       "Visual comparison with Linear's actual Initiatives layout"
     ]
+  },
+  {
+    "feature_id": "feature-032",
+    "tests_written": [
+      "TriageRow renders issue title",
+      "TriageRow renders issue identifier",
+      "TriageRow renders creator name",
+      "TriageRow renders date",
+      "TriageRow calls onAccept when accept clicked",
+      "TriageRow calls onDecline when decline clicked",
+      "TriageHeader renders triage count",
+      "TriageHeader renders team name",
+      "TriageHeader renders zero count"
+    ],
+    "needs_deeper_qa": [
+      "Accept action moves issue to backlog state via real API",
+      "Decline action moves issue to canceled state via real API",
+      "Triage list refreshes after accept/decline",
+      "Empty state shown when no triage issues",
+      "Multiple triage states handling",
+      "Visual comparison with Linear's actual Triage layout"
+    ]
   }
 ]

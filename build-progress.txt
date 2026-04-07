@@ -827,3 +827,46 @@ Date: 2026-04-07
 - Project progress shown as both bar and fraction text
 - Create form defaults status to current active tab
 - Keyboard shortcut N+I deferred to command palette feature (feature-040)
+
+## Iteration 24 — feature-032: Triage Queue
+Date: 2026-04-07
+
+### What was built
+- Triage API routes:
+  - `GET /api/teams/[key]/triage` — list issues in triage state with creator info and labels
+  - `PATCH /api/teams/[key]/triage/[issueId]` — accept (move to backlog) or decline (move to canceled)
+- Triage page (`src/app/(app)/team/[key]/triage/page.tsx`):
+  - Header with triage icon, title, count badge
+  - Issue rows: triage status icon, identifier, title, creator avatar + name, date
+  - Accept (checkmark) and decline (X) action buttons per row (visible on hover)
+  - Empty state when no triage issues
+  - Auto-refreshes list after accept/decline actions
+  - Footer with issue count
+- Reusable components:
+  - `TriageHeader` — header with icon, title, and count badge
+  - `TriageRow` — issue row with creator info, date, and accept/decline actions
+
+### Test results
+- 9 unit tests passing (tests/triage.test.tsx):
+  - 6 TriageRow tests (title, identifier, creator, date, accept callback, decline callback)
+  - 3 TriageHeader tests (count, team name, zero count)
+- 368 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/components/triage-header.tsx — new header component
+- src/components/triage-row.tsx — new triage issue row component
+- src/app/(app)/team/[key]/triage/page.tsx — updated from empty state to full triage queue
+- src/app/api/teams/[key]/triage/route.ts — new API route (GET)
+- src/app/api/teams/[key]/triage/[issueId]/route.ts — new API route (PATCH accept/decline)
+- tests/triage.test.tsx — new unit test file (9 tests)
+- prd.json — marked feature-032 build_pass: true
+- qa-hints.json — added feature-032 QA hints
+
+### Decisions
+- Accept moves issue to first backlog state (by position order)
+- Decline moves issue to first canceled state and sets canceledAt timestamp
+- Triage state lookup uses workflow_state category = "triage"
+- Action buttons visible on hover to keep UI clean
+- Creator info shown instead of assignee (triage issues typically unassigned)
