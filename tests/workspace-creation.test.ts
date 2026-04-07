@@ -1,4 +1,5 @@
 import {
+  generateTeamKey,
   getDefaultWorkflowStates,
   sanitizeWorkspaceSlug,
   validateWorkspaceName,
@@ -20,6 +21,17 @@ describe("workspace creation helpers", () => {
     expect(sanitizeWorkspaceSlug("Workspace ".repeat(10))).toBe(
       "workspace-workspace-workspace-workspace-workspace-workspace-wor",
     );
+  });
+
+  it("derives a team key prefix from the workspace name", () => {
+    expect(generateTeamKey("QA Workspace", [])).toBe("QAX");
+    expect(generateTeamKey("A", [])).toBe("AXX");
+    expect(generateTeamKey("123 team", [])).toBe("XXX");
+  });
+
+  it("appends a numeric suffix when the default team key already exists", () => {
+    expect(generateTeamKey("QA Workspace", ["QAX"])).toBe("QAX2");
+    expect(generateTeamKey("QA Workspace", ["QAX", "QAX2"])).toBe("QAX3");
   });
 
   it("assigns sequential default workflow positions for new teams", () => {

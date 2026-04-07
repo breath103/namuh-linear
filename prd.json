@@ -107,7 +107,7 @@
     "core": false,
     "dependent_on": ["onboarding-001", "infra-004"],
     "build_pass": true,
-    "qa_pass": false
+    "qa_pass": true
   },
   {
     "id": "onboarding-003",

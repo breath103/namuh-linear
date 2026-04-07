@@ -316,5 +316,41 @@
       }
     ],
     "fix_description": "Added shared workspace-name/slug rules for the page and API, enforced server-side workspace-name validation to prevent the long-name `500`, cleared stale onboarding errors when the form changes, and seeded default workflow states with stable sequential positions."
+  },
+  {
+    "feature_id": "onboarding-002",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 565 unit tests passed before the onboarding-002 fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the app still loaded successfully on `http://localhost:3015`.",
+      "Ran full `make test-e2e` before and after the fix because the onboarding change touched shared layout and routing paths; smoke passed both times and the only failing specs were the pre-existing unrelated command-palette E2E tests.",
+      "Opened the live clone in Ever with an authenticated Google session, created a real workspace, and verified the app redirected to `/onboarding/invite` with live `workspaceId` and `teamKey` query params.",
+      "Verified the mixed-validity invite case in the browser: one valid invite plus one invalid email surfaced the invalid-address error without blocking the valid send attempt.",
+      "Verified real invitation delivery through SES by sending an invite to `jaeyunha0317@gmail.com`, opening Gmail in Ever, and confirming the message from `noreply@foreverbrowsing.com` arrived with the expected invitation copy and accept CTA.",
+      "Extracted the live accept-invite URL from the delivered email, opened it in the browser, and confirmed it redirected into the invited workspace route.",
+      "Reproduced the skip-flow bug with a second `QA ...` workspace: the invite screen generated the duplicate team key `QAX`, and `Skip for now` sent the browser back to the previously created `/team/QAX/all` workspace instead of the new workspace.",
+      "Patched workspace creation to generate globally unique team keys and updated the app shell to resolve its workspace/team context from the active team route.",
+      "Re-ran the duplicate-prefix flow after the fix: creating `QA Fix 20260407 1644` produced `/onboarding/invite?...&teamKey=QAX2`, `Skip for now` landed on `/team/QAX2/all`, and the live page text showed `QA Fix 20260407 1644` for both workspace and team context.",
+      "Saved post-fix QA evidence to `ralph/screenshots/qa/onboarding-002-attempt-1-post-skip-qax2.jpg`.",
+      "Ran `make check && make test` after the fixes; typecheck, Biome, and all 568 unit tests passed."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "Workspace creation generated duplicate default team keys for similarly prefixed workspace names, which caused onboarding invite redirects to land in an older workspace.",
+        "expected": "Creating a new workspace should produce a team key that routes uniquely to that workspace so both `Send invitations` and `Skip for now` land in the workspace that was just created.",
+        "actual": "Multiple `QA ...` workspaces all generated `QAX`; after creating a second one, `Skip for now` redirected to the earlier `/team/QAX/all` workspace instead of the new workspace.",
+        "reproduction": "1. Log in and create a workspace whose name begins with `QA `, then complete or skip the invite step.\n2. Create another workspace whose name also begins with `QA `.\n3. On `/onboarding/invite`, click `Skip for now`.\n4. Observe the browser land on the first `/team/QAX/all` workspace rather than the new workspace."
+      },
+      {
+        "severity": "major",
+        "description": "After onboarding redirected to a newly created or newly joined team, the app shell kept showing stale workspace/team labels from an older workspace.",
+        "expected": "Once onboarding sends the user to a team route, the shell should display the workspace and team that correspond to that active route.",
+        "actual": "The shell selected a default workspace/team independently of the active team route, so the URL changed but the sidebar context stayed on the earlier workspace until fixed.",
+        "reproduction": "1. Create or accept an invite into a new workspace.\n2. Land on the resulting `/team/<new-key>/all` route.\n3. Observe that the sidebar shows the older workspace/team labels instead of the workspace tied to `<new-key>`."
+      }
+    ],
+    "fix_description": "Generated globally unique default team keys during workspace creation, added shell-side resolution of workspace/team context from the active team route, and re-verified the invite send, email delivery, accept-link, and skip flows. `qa_pass` is now true for onboarding-002; the remaining full-E2E failures are the pre-existing unrelated command-palette specs."
   }
 ]

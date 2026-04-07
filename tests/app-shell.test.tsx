@@ -1,9 +1,16 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Mock next/navigation
+let mockPathname = "/inbox";
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/inbox",
+  usePathname: () => mockPathname,
   useRouter: () => ({ push: vi.fn() }),
   Link: ({
     children,
@@ -142,6 +149,8 @@ describe("Sidebar", () => {
 describe("AppShell", () => {
   afterEach(() => {
     cleanup();
+    mockPathname = "/inbox";
+    vi.restoreAllMocks();
   });
 
   it("renders sidebar and content area", () => {
@@ -186,5 +195,35 @@ describe("AppShell", () => {
     );
     const contentDiv = container.querySelector(".rounded-xl");
     expect(contentDiv).not.toBeNull();
+  });
+
+  it("updates the shell context for the active team route", async () => {
+    mockPathname = "/team/QAX2/all";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        workspaceName: "QA Fix 20260407 1644",
+        workspaceInitials: "QA",
+        teamName: "QA Fix 20260407 1644",
+        teamKey: "QAX2",
+      }),
+    } as Response);
+
+    render(
+      <AppShell
+        workspaceName="Onboarding QA Team"
+        workspaceInitials="ON"
+        teamName="Onboarding QA Team"
+        teamKey="QAX"
+      >
+        <div>Content</div>
+      </AppShell>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText("QA Fix 20260407 1644").length,
+      ).toBeGreaterThan(0);
+    });
   });
 });

@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { member, team, workspace } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "./app-shell";
@@ -27,6 +27,7 @@ export default async function AppLayout({
     .from(member)
     .innerJoin(workspace, eq(member.workspaceId, workspace.id))
     .where(eq(member.userId, session.user.id))
+    .orderBy(desc(member.createdAt))
     .limit(1);
 
   if (memberships.length === 0) {
@@ -40,6 +41,7 @@ export default async function AppLayout({
     .select({ name: team.name, key: team.key })
     .from(team)
     .where(eq(team.workspaceId, ws.workspaceId))
+    .orderBy(desc(team.createdAt))
     .limit(1);
 
   const firstTeam = teams[0] ?? { name: "Team", key: "TEAM" };

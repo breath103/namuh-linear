@@ -1,5 +1,6 @@
 export const MAX_WORKSPACE_NAME_LENGTH = 255;
 export const MAX_WORKSPACE_SLUG_LENGTH = 63;
+const TEAM_KEY_LENGTH = 3;
 
 const DEFAULT_WORKFLOW_STATE_DEFINITIONS = [
   {
@@ -57,6 +58,36 @@ export function validateWorkspaceName(name: string) {
   }
 
   return null;
+}
+
+function getTeamKeyPrefix(name: string) {
+  return name
+    .trim()
+    .substring(0, TEAM_KEY_LENGTH)
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "X")
+    .padEnd(TEAM_KEY_LENGTH, "X");
+}
+
+export function generateTeamKey(
+  name: string,
+  existingKeys: Iterable<string>,
+): string {
+  const prefix = getTeamKeyPrefix(name);
+  const normalizedKeys = new Set(
+    Array.from(existingKeys, (key) => key.trim().toUpperCase()),
+  );
+
+  if (!normalizedKeys.has(prefix)) {
+    return prefix;
+  }
+
+  let suffix = 2;
+  while (normalizedKeys.has(`${prefix}${suffix}`)) {
+    suffix += 1;
+  }
+
+  return `${prefix}${suffix}`;
 }
 
 export function getDefaultWorkflowStates(teamId: string) {

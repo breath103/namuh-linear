@@ -8,6 +8,7 @@ import {
   workspace,
 } from "@/lib/db/schema";
 import {
+  generateTeamKey,
   getDefaultWorkflowStates,
   sanitizeWorkspaceSlug,
   validateWorkspaceName,
@@ -71,12 +72,11 @@ export async function POST(request: Request) {
       role: "owner",
     });
 
-    // Create default team with workspace name
-    const teamKey = name
-      .trim()
-      .substring(0, 3)
-      .toUpperCase()
-      .replace(/[^A-Z]/g, "X");
+    const existingTeamKeys = await tx.select({ key: team.key }).from(team);
+    const teamKey = generateTeamKey(
+      name,
+      existingTeamKeys.map(({ key }) => key),
+    );
 
     const [newTeam] = await tx
       .insert(team)
