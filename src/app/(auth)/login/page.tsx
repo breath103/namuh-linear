@@ -35,40 +35,67 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-[360px] px-6">
-      {/* Logo */}
-      <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-[#7180ff]">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            role="img"
-            aria-label="Linear logo"
-          >
-            <path
-              d="M2 10L10 2L18 10L10 18L2 10Z"
-              fill="white"
-              fillOpacity="0.9"
-            />
-          </svg>
-        </div>
-        <h1 className="text-xl font-semibold text-white">Log in to Linear</h1>
+    <div className="w-full max-w-[340px] px-4">
+      {/* Logo & Title */}
+      <div className="mb-10 flex flex-col items-center">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 100 100"
+          fill="none"
+          role="img"
+          aria-label="Linear logo"
+          className="mb-5"
+        >
+          <path
+            d="M5.22 51.09a49.4 49.4 0 0 0 43.69 43.69L5.22 51.09Z"
+            fill="#5E6AD2"
+          />
+          <path
+            d="M1.01 40.94a49.54 49.54 0 0 0 58.05 58.05L1.01 40.94Z"
+            fill="#5E6AD2"
+          />
+          <path
+            d="M3.42 27.2A49.58 49.58 0 0 0 72.8 96.58L3.42 27.2Z"
+            fill="#5E6AD2"
+          />
+          <path
+            d="M10.57 16.1A49.53 49.53 0 0 0 83.9 89.43L10.57 16.1Z"
+            fill="#5E6AD2"
+          />
+          <path
+            d="M21.07 8.53a49.46 49.46 0 0 0 70.4 70.4A49.53 49.53 0 0 0 21.07 8.53Z"
+            fill="#5E6AD2"
+          />
+          <path
+            d="M34.7 3.68a49.46 49.46 0 0 0 61.6 61.63A49.54 49.54 0 0 0 34.7 3.68Z"
+            fill="#5E6AD2"
+          />
+          <path
+            d="M50.58.16a49.4 49.4 0 0 0 49.26 49.26A49.41 49.41 0 0 0 50.58.16Z"
+            fill="#5E6AD2"
+          />
+        </svg>
+        <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-white">
+          Log in to Linear
+        </h1>
+        <p className="mt-2 text-sm text-[#6b6f76]">
+          Build software better, together.
+        </p>
       </div>
 
       {step === "choose" && (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {/* Google OAuth */}
           <button
             type="button"
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-[#2a2a2e] bg-[#1c1c20] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#25252a] disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-3 rounded-md border border-[#26262a] bg-[#18181b] px-4 py-[10px] text-[13px] font-medium text-white/90 transition-colors hover:bg-[#222226] hover:border-[#303036] disabled:opacity-50"
           >
             <svg
-              width="18"
-              height="18"
+              width="16"
+              height="16"
               viewBox="0 0 18 18"
               role="img"
               aria-label="Google"
@@ -98,11 +125,11 @@ export default function LoginPage() {
             type="button"
             onClick={() => setStep("email-input")}
             disabled={loading}
-            className="flex w-full items-center justify-center gap-3 rounded-lg border border-[#2a2a2e] bg-[#1c1c20] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#25252a] disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-3 rounded-md border border-[#26262a] bg-[#18181b] px-4 py-[10px] text-[13px] font-medium text-white/90 transition-colors hover:bg-[#222226] hover:border-[#303036] disabled:opacity-50"
           >
             <svg
-              width="18"
-              height="18"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -118,26 +145,26 @@ export default function LoginPage() {
             Continue with Email
           </button>
 
-          {error && <p className="text-center text-sm text-red-400">{error}</p>}
+          {error && (
+            <p className="pt-1 text-center text-sm text-red-400">{error}</p>
+          )}
         </div>
       )}
 
       {step === "email-input" && (
         <form onSubmit={handleEmailSubmit} className="space-y-3">
-          <div>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email address..."
-              required
-              className="w-full rounded-lg border border-[#2a2a2e] bg-[#1c1c20] px-4 py-2.5 text-sm text-white placeholder-[#6b6f76] outline-none focus:border-[#7180ff] transition-colors"
-            />
-          </div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email address..."
+            required
+            className="w-full rounded-md border border-[#26262a] bg-[#18181b] px-3.5 py-[10px] text-[13px] text-white placeholder-[#555] outline-none transition-colors focus:border-[#5E6AD2]"
+          />
           <button
             type="submit"
             disabled={loading || !email.trim()}
-            className="w-full rounded-lg bg-[#7180ff] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#5c6be6] disabled:opacity-50"
+            className="w-full rounded-md bg-[#5E6AD2] px-4 py-[10px] text-[13px] font-medium text-white transition-colors hover:bg-[#4F5ABF] disabled:opacity-50"
           >
             {loading ? "Sending..." : "Continue with Email"}
           </button>
@@ -147,7 +174,7 @@ export default function LoginPage() {
               setStep("choose");
               setError("");
             }}
-            className="w-full text-center text-sm text-[#6b6f76] hover:text-white transition-colors"
+            className="w-full pt-1 text-center text-[13px] text-[#6b6f76] transition-colors hover:text-white"
           >
             Back to login options
           </button>
@@ -156,14 +183,14 @@ export default function LoginPage() {
       )}
 
       {step === "email-sent" && (
-        <div className="text-center space-y-4">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#1c1c20] border border-[#2a2a2e]">
+        <div className="space-y-5 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#26262a] bg-[#18181b]">
             <svg
-              width="24"
-              height="24"
+              width="22"
+              height="22"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#7180ff"
+              stroke="#5E6AD2"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -175,10 +202,10 @@ export default function LoginPage() {
             </svg>
           </div>
           <div>
-            <h2 className="text-base font-medium text-white mb-1">
+            <h2 className="text-[15px] font-medium text-white">
               Check your email
             </h2>
-            <p className="text-sm text-[#6b6f76]">
+            <p className="mt-1.5 text-[13px] text-[#6b6f76]">
               We sent a sign-in link to{" "}
               <span className="text-white">{email}</span>
             </p>
@@ -190,7 +217,7 @@ export default function LoginPage() {
               setEmail("");
               setError("");
             }}
-            className="text-sm text-[#6b6f76] hover:text-white transition-colors"
+            className="text-[13px] text-[#6b6f76] transition-colors hover:text-white"
           >
             Use a different method
           </button>
@@ -198,7 +225,7 @@ export default function LoginPage() {
       )}
 
       {/* Footer */}
-      <p className="mt-8 text-center text-xs text-[#6b6f76]">
+      <p className="mt-10 text-center text-[11px] leading-relaxed text-[#555]">
         By continuing, you agree to our Terms of Service and Privacy Policy.
       </p>
     </div>

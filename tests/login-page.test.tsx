@@ -11,8 +11,8 @@ vi.mock("@/lib/auth-client", () => ({
   authClient: {},
 }));
 
-import { signIn } from "@/lib/auth-client";
 import LoginPage from "@/app/(auth)/login/page";
+import { signIn } from "@/lib/auth-client";
 
 describe("Login page", () => {
   afterEach(() => {
@@ -90,5 +90,50 @@ describe("Login page", () => {
     expect(
       screen.getByText(/Terms of Service and Privacy Policy/),
     ).toBeDefined();
+  });
+
+  it("shows error when magic link fails", async () => {
+    vi.mocked(signIn.magicLink).mockRejectedValueOnce(new Error("fail"));
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText("Continue with Email"));
+
+    const input = screen.getByPlaceholderText("Enter your email address...");
+    fireEvent.change(input, { target: { value: "bad@example.com" } });
+    fireEvent.submit(input.closest("form") as HTMLFormElement);
+
+    await vi.waitFor(() => {
+      expect(
+        screen.getByText("Failed to send magic link. Please try again."),
+      ).toBeDefined();
+    });
+  });
+
+  it("allows returning from email-sent to choose step", async () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText("Continue with Email"));
+
+    const input = screen.getByPlaceholderText("Enter your email address...");
+    fireEvent.change(input, { target: { value: "test@example.com" } });
+    fireEvent.submit(input.closest("form") as HTMLFormElement);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("Check your email")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByText("Use a different method"));
+    expect(screen.getByText("Continue with Google")).toBeDefined();
+  });
+
+  it("displays the submitted email in confirmation", async () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText("Continue with Email"));
+
+    const input = screen.getByPlaceholderText("Enter your email address...");
+    fireEvent.change(input, { target: { value: "hello@linear.app" } });
+    fireEvent.submit(input.closest("form") as HTMLFormElement);
+
+    await vi.waitFor(() => {
+      expect(screen.getByText("hello@linear.app")).toBeDefined();
+    });
   });
 });

@@ -1,0 +1,41 @@
+[
+  {
+    "feature_id": "infra-001",
+    "tests_written": [
+      "All 26 tables exported with correct names",
+      "All 9 enums have correct values",
+      "Issue table has all required columns",
+      "Workspace table has all required columns",
+      "Team table has all required columns",
+      "All relation definitions are exported"
+    ],
+    "needs_deeper_qa": [
+      "Schema push to actual Postgres — verify all tables created correctly",
+      "Foreign key constraints work correctly with cascade deletes",
+      "JSONB default values for settings columns",
+      "Unique index constraints enforce properly on real DB"
+    ]
+  },
+  {
+    "feature_id": "auth-004",
+    "tests_written": [
+      "renders login title and logo",
+      "shows Continue with Google and Email buttons",
+      "calls signIn.social with google provider",
+      "shows email input after clicking Continue with Email",
+      "back button returns to choose step",
+      "email-sent confirmation after submit",
+      "error message on magic link failure",
+      "returns from email-sent to choose step",
+      "displays submitted email in confirmation"
+    ],
+    "needs_deeper_qa": [
+      "Visual comparison with actual Linear login page",
+      "Google OAuth redirect flow end-to-end",
+      "Magic link email delivery and click-through",
+      "Mobile responsive layout",
+      "Dark/light theme switching on login page",
+      "Inter font loading and fallback behavior"
+    ]
+  }
+]

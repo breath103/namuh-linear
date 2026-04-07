@@ -1,0 +1,90 @@
+## Iteration 1 — infra-001: Database Schema Setup
+Date: 2026-04-07
+
+### What was built
+- Complete Drizzle ORM schema with 26 tables covering all data models from build-spec.md
+- Tables: user, session, account, verification (Better Auth), workspace, member, team, teamMember, workflowState, label, project, projectTeam, projectMember, projectMilestone, cycle, issue, issueLabel, issueRelation, comment, reaction, initiative, initiativeProject, customView, notification, apiKey, webhook
+- 9 PostgreSQL enums: workflowStateCategory, issuePriority, issueRelationType, projectStatus, projectPriority, initiativeStatus, memberRole, notificationType, viewLayout, estimateType
+- Full Drizzle relations defined for all tables (query builder support)
+- Indexes on all foreign keys and common query patterns
+- Unique constraints on composite keys (team+workspace, issue+team number, etc.)
+
+### Test results
+- 39 unit tests passing (tests/schema.test.ts)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+- Pre-existing failures in tests/onboard-validation.test.ts (10 tests, not related to this change)
+
+### Files changed
+- src/lib/db/schema.ts — complete rewrite with all tables, enums, and relations
+- tests/schema.test.ts — new unit test file (39 tests)
+- tests/e2e/smoke.spec.ts — initial smoke test
+- biome.json — added target-docs to ignore list (pre-existing graphql lint errors)
+- ralph-config.json — auto-formatted by biome
+
+### Decisions
+- Used text IDs for Better Auth tables (user, session, account, verification) to match Better Auth's convention
+- Used UUID IDs for all application tables (workspace, team, issue, etc.)
+- Issue identifiers stored as varchar(20) for "ENG-123" format
+- Workspace settings and team settings stored as JSONB for flexibility
+- Added apiKey and webhook tables beyond the base data model for API/webhook features in settings
+
+### Infrastructure
+- AWS preflight.sh running in background to provision VPC, RDS, ElastiCache, S3, ECR, ECS, ALB
+- DB push will happen once RDS is available
+
+## Iteration 2 — infra-002: Redis Connection Setup
+Date: 2026-04-07
+
+### What was built
+- Redis client module (src/lib/redis.ts) with ioredis
+- Two separate Redis clients: primary (caching/commands) and subscriber (pub/sub)
+- Cache helpers: cacheGet, cacheSet, cacheDel, cacheDelPattern (JSON serialization, TTL support)
+- Pub/sub helpers: publish, subscribe, unsubscribe
+- Retry strategy with exponential backoff (max 5s)
+- Lazy connect for startup resilience
+
+### Test results
+- 8 unit tests passing (tests/redis.test.ts) with mocked ioredis
+- 55 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/lib/redis.ts — new Redis client module
+- tests/redis.test.ts — new unit test file (8 tests)
+- tests/e2e/smoke.spec.ts — fixed non-null assertion lint error
+
+## Iteration 3 — auth-004: Login/Signup Page UI
+Date: 2026-04-07
+
+### What was built
+- Polished login page UI to match Linear's actual design language
+- Replaced placeholder diamond logo with Linear's actual multi-stripe SVG logo mark
+- Updated color scheme to use Linear's brand purple (#5E6AD2) instead of generic blue-purple (#7180ff)
+- Added Inter font via next/font/google with CSS variable for Tailwind integration
+- Updated tailwind.config.ts to use Inter as default sans font
+- Fixed root layout metadata from "Resend Clone" to "Linear" with proper description
+- Updated body background to #090909 (Linear's sidebar dark bg)
+- Added subtitle "Build software better, together." under login heading
+- Refined button styling: smaller border radius (md vs lg), tighter spacing, darker bg (#18181b)
+- Added 3 new unit tests: error handling, email-sent back navigation, email confirmation display
+
+### Test results
+- 12 unit tests passing (tests/login-page.test.tsx)
+- 102 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/app/(auth)/login/page.tsx — redesigned with Linear branding, logo, colors
+- src/app/layout.tsx — added Inter font, fixed metadata, updated body styling
+- tailwind.config.ts — added Inter as default sans font family
+- tests/login-page.test.tsx — added 3 new tests (error, back nav, email display)
+- prd.json — marked auth-004 build_pass: true
+
+### Decisions
+- Used Linear's actual SVG logo (multi-stripe mark) for authenticity
+- Changed accent color to #5E6AD2 (Linear's exact purple) throughout login page
+- Login handles both login and signup implicitly (no separate signup page, matching Linear)
+- Added autoFocus to email input for better UX
