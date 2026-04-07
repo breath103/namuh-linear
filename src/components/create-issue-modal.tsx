@@ -18,6 +18,7 @@ interface CreateIssueModalProps {
   teamId: string;
   defaultStateId?: string;
   defaultStateName?: string;
+  defaultProjectId?: string | null;
   onCreated?: () => void | Promise<void>;
 }
 
@@ -241,6 +242,7 @@ export function CreateIssueModal({
   teamId,
   defaultStateId,
   defaultStateName = "Backlog",
+  defaultProjectId = null,
   onCreated,
 }: CreateIssueModalProps) {
   const [title, setTitle] = useState("");
@@ -279,7 +281,7 @@ export function CreateIssueModal({
     setPriority("none");
     setSelectedStateId(defaultStateId ?? "");
     setSelectedAssigneeId(null);
-    setSelectedProjectId(null);
+    setSelectedProjectId(defaultProjectId);
     setSelectedLabelIds([]);
     setAttachments([]);
     setError(null);
@@ -291,7 +293,7 @@ export function CreateIssueModal({
     if (descriptionRef.current) {
       descriptionRef.current.innerHTML = "";
     }
-  }, [defaultStateId, open]);
+  }, [defaultProjectId, defaultStateId, open]);
 
   useEffect(() => {
     if (!open) {
@@ -465,7 +467,7 @@ export function CreateIssueModal({
         setTitle("");
         setDescriptionHtml("");
         setSelectedAssigneeId(null);
-        setSelectedProjectId(null);
+        setSelectedProjectId(defaultProjectId);
         setSelectedLabelIds([]);
         setAttachments([]);
 

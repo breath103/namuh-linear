@@ -1,5 +1,6 @@
 "use client";
 
+import { CreateIssueModal } from "@/components/create-issue-modal";
 import { IssueRow, priorityMap } from "@/components/issue-row";
 import { IssuesGroupHeader } from "@/components/issues-group-header";
 import { MilestoneRow } from "@/components/milestone-row";
@@ -81,6 +82,11 @@ interface ProjectResponse {
   };
 }
 
+interface CreateIssueDefaults {
+  stateId?: string;
+  stateName?: string;
+}
+
 function formatRelativeTime(dateStr: string) {
   const now = Date.now();
   const time = new Date(dateStr).getTime();
@@ -144,6 +150,9 @@ export function ProjectDetailPage() {
   const [projectUpdate, setProjectUpdate] = useState("");
   const [showDescriptionEditor, setShowDescriptionEditor] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [showCreateIssue, setShowCreateIssue] = useState(false);
+  const [createIssueDefaults, setCreateIssueDefaults] =
+    useState<CreateIssueDefaults>({});
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -237,6 +246,7 @@ export function ProjectDetailPage() {
           : "Add team",
     },
   ];
+  const createIssueTeam = data.teams[0] ?? data.availableTeams[0] ?? null;
 
   async function handleSaveProperties(values: ProjectPropertiesSaveInput) {
     await patchProject(values);
@@ -273,6 +283,17 @@ export function ProjectDetailPage() {
       setShowUpdateComposer(false);
       setActiveTab("activity");
     }
+  }
+
+  async function refreshProject() {
+    const res = await fetch(`/api/projects/${params.slug}`);
+    if (!res.ok) {
+      return;
+    }
+
+    const json = await res.json();
+    setData(json);
+    setDescriptionDraft(json.project.description ?? "");
   }
 
   const sidebar = (
@@ -706,6 +727,17 @@ export function ProjectDetailPage() {
                             group.state.category as StatusCategory
                           }
                           statusColor={group.state.color}
+                          onAddIssue={
+                            createIssueTeam
+                              ? () => {
+                                  setCreateIssueDefaults({
+                                    stateId: group.state.id,
+                                    stateName: group.state.name,
+                                  });
+                                  setShowCreateIssue(true);
+                                }
+                              : undefined
+                          }
                         />
                         {group.issues.map((issue) => (
                           <IssueRow
@@ -735,6 +767,20 @@ export function ProjectDetailPage() {
           {sidebar}
         </div>
       </div>
+
+      {createIssueTeam ? (
+        <CreateIssueModal
+          open={showCreateIssue}
+          onClose={() => setShowCreateIssue(false)}
+          onCreated={refreshProject}
+          teamId={createIssueTeam.id}
+          teamKey={createIssueTeam.key}
+          teamName={createIssueTeam.name}
+          defaultStateId={createIssueDefaults.stateId}
+          defaultStateName={createIssueDefaults.stateName}
+          defaultProjectId={project.id}
+        />
+      ) : null}
     </div>
   );
 }

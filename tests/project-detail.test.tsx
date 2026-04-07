@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -7,9 +7,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { MilestoneRow } from "@/components/milestone-row";
+import { ProjectDetailPage } from "@/components/project-detail-page";
 import { ProjectProperties } from "@/components/project-properties";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("ProjectProperties", () => {
   const defaultProps = {
@@ -154,5 +158,107 @@ describe("MilestoneRow", () => {
       />,
     );
     expect(screen.getByTestId("milestone-progress-bar")).toBeDefined();
+  });
+});
+
+describe("ProjectDetailPage", () => {
+  it("opens create issue from an issues group on the project detail page", async () => {
+    global.fetch = vi.fn((input) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url === "/api/projects/agent-speed") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              project: {
+                id: "project-1",
+                name: "Agent Speed",
+                description: "Latency work",
+                icon: "⚡",
+                slug: "agent-speed",
+                status: "planned",
+                priority: "high",
+                startDate: null,
+                targetDate: null,
+              },
+              lead: null,
+              members: [],
+              teams: [{ id: "team-1", name: "Engineering", key: "ENG" }],
+              labels: [],
+              availableMembers: [],
+              availableTeams: [
+                { id: "team-1", name: "Engineering", key: "ENG" },
+              ],
+              availableLabels: [],
+              slackChannel: null,
+              resources: [],
+              activity: [],
+              milestones: [],
+              issueGroups: [
+                {
+                  state: {
+                    id: "state-1",
+                    name: "Backlog",
+                    category: "backlog",
+                    color: "#6b7280",
+                  },
+                  issues: [
+                    {
+                      id: "issue-1",
+                      identifier: "ENG-1",
+                      title: "Trim DOM payload",
+                      priority: "medium",
+                      assignee: null,
+                      createdAt: "2026-04-07T00:00:00.000Z",
+                      href: "/team/ENG/issue/issue-1",
+                      labels: [],
+                    },
+                  ],
+                },
+              ],
+              progress: {
+                total: 1,
+                completed: 0,
+                percentage: 0,
+                assignees: [],
+                labels: [],
+              },
+            }),
+        });
+      }
+
+      if (url === "/api/teams/ENG/create-issue-options") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              team: { id: "team-1", name: "Engineering", key: "ENG" },
+              statuses: [
+                {
+                  id: "state-1",
+                  name: "Backlog",
+                  category: "backlog",
+                  color: "#6b7280",
+                },
+              ],
+              priorities: [{ value: "none", label: "No priority" }],
+              assignees: [],
+              labels: [],
+              projects: [{ id: "project-1", name: "Agent Speed", icon: "⚡" }],
+            }),
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    render(<ProjectDetailPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Issues" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add issue" }));
+
+    expect(await screen.findByText("New issue")).toBeDefined();
+    expect(screen.getAllByText("Agent Speed").length).toBeGreaterThan(1);
   });
 });

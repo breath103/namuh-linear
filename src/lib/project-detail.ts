@@ -116,3 +116,14 @@ export function buildMilestoneData(
     };
   });
 }
+
+export function haveSameIds(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const leftIds = [...left].sort();
+  const rightIds = [...right].sort();
+
+  return leftIds.every((value, index) => value === rightIds[index]);
+}

@@ -17,6 +17,7 @@ import {
   type ProjectActivityEntry,
   type ProjectResource,
   buildMilestoneData,
+  haveSameIds,
   readProjectSettings,
 } from "@/lib/project-detail";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
@@ -389,23 +390,35 @@ export async function PATCH(
   const nextProjectValues: Partial<typeof project.$inferInsert> = {};
   const activityEntries: ProjectActivityEntry[] = [];
 
-  const [workspaceMembers, workspaceTeams, workspaceLabels] = await Promise.all(
-    [
-      db
-        .select({ id: user.id })
-        .from(member)
-        .innerJoin(user, eq(member.userId, user.id))
-        .where(eq(member.workspaceId, workspaceId)),
-      db
-        .select({ id: team.id })
-        .from(team)
-        .where(eq(team.workspaceId, workspaceId)),
-      db
-        .select({ id: label.id })
-        .from(label)
-        .where(eq(label.workspaceId, workspaceId)),
-    ],
-  );
+  const [
+    workspaceMembers,
+    workspaceTeams,
+    workspaceLabels,
+    currentProjectMembers,
+    currentProjectTeams,
+  ] = await Promise.all([
+    db
+      .select({ id: user.id })
+      .from(member)
+      .innerJoin(user, eq(member.userId, user.id))
+      .where(eq(member.workspaceId, workspaceId)),
+    db
+      .select({ id: team.id })
+      .from(team)
+      .where(eq(team.workspaceId, workspaceId)),
+    db
+      .select({ id: label.id })
+      .from(label)
+      .where(eq(label.workspaceId, workspaceId)),
+    db
+      .select({ userId: projectMember.userId })
+      .from(projectMember)
+      .where(eq(projectMember.projectId, proj.id)),
+    db
+      .select({ teamId: projectTeam.teamId })
+      .from(projectTeam)
+      .where(eq(projectTeam.projectId, proj.id)),
+  ]);
 
   const validMemberIds = new Set(
     workspaceMembers.map((workspaceMember) => workspaceMember.id),
@@ -415,6 +428,12 @@ export async function PATCH(
   );
   const validLabelIds = new Set(
     workspaceLabels.map((workspaceLabel) => workspaceLabel.id),
+  );
+  const currentProjectMemberIds = currentProjectMembers.map(
+    (projectMemberRow) => projectMemberRow.userId,
+  );
+  const currentProjectTeamIds = currentProjectTeams.map(
+    (projectTeamRow) => projectTeamRow.teamId,
   );
 
   let replaceMemberIds: string[] | null = null;
@@ -506,24 +525,30 @@ export async function PATCH(
   }
 
   if ("memberIds" in body) {
-    replaceMemberIds = uniqueStrings(body.memberIds).filter((memberId) =>
+    const memberIds = uniqueStrings(body.memberIds).filter((memberId) =>
       validMemberIds.has(memberId),
     );
-    propertiesTouched = true;
+    if (!haveSameIds(memberIds, currentProjectMemberIds)) {
+      replaceMemberIds = memberIds;
+      propertiesTouched = true;
+    }
   }
 
   if ("teamIds" in body) {
-    replaceTeamIds = uniqueStrings(body.teamIds).filter((teamId) =>
+    const teamIds = uniqueStrings(body.teamIds).filter((teamId) =>
       validTeamIds.has(teamId),
     );
-    propertiesTouched = true;
+    if (!haveSameIds(teamIds, currentProjectTeamIds)) {
+      replaceTeamIds = teamIds;
+      propertiesTouched = true;
+    }
   }
 
   if ("labelIds" in body) {
     const labelIds = uniqueStrings(body.labelIds).filter((labelId) =>
       validLabelIds.has(labelId),
     );
-    if (labelIds.join(",") !== currentSettings.labelIds.join(",")) {
+    if (!haveSameIds(labelIds, currentSettings.labelIds)) {
       nextSettings.labelIds = labelIds;
       propertiesTouched = true;
     }

@@ -1,4 +1,8 @@
-import { buildMilestoneData, readProjectSettings } from "@/lib/project-detail";
+import {
+  buildMilestoneData,
+  haveSameIds,
+  readProjectSettings,
+} from "@/lib/project-detail";
 import { describe, expect, it } from "vitest";
 
 describe("buildMilestoneData", () => {
@@ -84,5 +88,16 @@ describe("readProjectSettings", () => {
     expect(parsed.labelIds).toEqual(["label-1"]);
     expect(parsed.resources).toHaveLength(1);
     expect(parsed.activity).toHaveLength(1);
+  });
+});
+
+describe("haveSameIds", () => {
+  it("treats reordered ids as unchanged", () => {
+    expect(haveSameIds(["b", "a"], ["a", "b"])).toBe(true);
+  });
+
+  it("detects added or removed ids", () => {
+    expect(haveSameIds(["a"], ["a", "b"])).toBe(false);
+    expect(haveSameIds(["a", "c"], ["a", "b"])).toBe(false);
   });
 });
