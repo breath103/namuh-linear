@@ -748,5 +748,46 @@
       }
     ],
     "fix_description": "Centralized the display-options popover state so outside clicks and overlapping inline selectors behave correctly, wired board cards to the shared display-properties state, added due-date rendering support for issue rows/cards where data exists, and added regression coverage for outside-close behavior plus board-card property toggling."
+  },
+  {
+    "feature_id": "feature-006",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 602 unit tests passed after the filter fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; smoke passed on `http://localhost:3015`.",
+      "Ran `make check`; typecheck and Biome lint/format both passed after the shared filter/API/state changes.",
+      "Ran full E2E coverage for the shared change set: `make test-e2e` invoked the Playwright suite through the repo's quiet wrapper, then `npx playwright test --reporter=line --workers=1` was used to surface results. Smoke still passed and the only failing specs were the pre-existing unrelated `tests/e2e/command-palette.spec.ts` cases where the command palette dialog never opens.",
+      "Compared the clone against real Linear in Ever: Linear exposes an `Add filter` control on the team issue header, while the clone previously showed a generic `Filter` button.",
+      "Opened the authenticated clone on `/team/ONB/all` in Ever, confirmed the header now shows `Add filter`, and verified the expanded menu includes `Status`, `Priority`, `Assignee`, `Label`, `Project`, `Cycle`, `Creator`, `Due date`, and `Estimate`; saved UI evidence to `ralph/screenshots/qa/feature-006-list-filter-menu.png`.",
+      "Verified real list filtering on `/team/ONB/all`: applying `Status = In Progress` reduced the list to the in-progress issue, adding `Priority = High` preserved AND logic, and the issue list counts/tabs remained coherent while filters were active.",
+      "Verified the newly wired creator filter on live data: the `Creator` menu now shows `Jaeyun Ha` for team `ONB` instead of an empty submenu.",
+      "Navigated from `/team/ONB/all` to `/team/ONB/board` with active filters and confirmed both filter chips persisted and the board columns updated so only `ONB-4` remained visible under `In Progress`; saved evidence to `ralph/screenshots/qa/feature-006-board-persisted-filters.png`.",
+      "Confirmed the shared filter state still behaves safely in tests by adding dedicated persistence coverage for `useFilters` and expanding filter-bar regression tests to cover the missing filter types and matching logic."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "Team issue filters were page-local and disappeared when navigating between list and board views.",
+        "expected": "Active filters should persist while moving between `/team/{key}/all` and `/team/{key}/board`, so the same filtered result set is preserved across team issue layouts.",
+        "actual": "Before the fix, applying a filter on `/team/ONB/all` and then opening `/team/ONB/board` reset the filter chips and restored the unfiltered issue set.",
+        "reproduction": "1. Open `/team/ONB/all`.\n2. Add a filter such as `Status = Backlog`.\n3. Navigate to `/team/ONB/board`.\n4. Observe that the pre-fix board view loses the filter chip and shows the full board again."
+      },
+      {
+        "severity": "major",
+        "description": "Several PRD-required filter types were not implemented end to end.",
+        "expected": "The filter bar should expose working options for `Project`, `Cycle`, `Creator`, `Due date`, and `Estimate`, backed by real team issue data.",
+        "actual": "Before the fix, the team issues API only returned status/priority/assignee/label options, so these additional filter types were missing from the menu or opened empty panels with no real option data.",
+        "reproduction": "1. Open `/team/ONB/all`.\n2. Click the filter control.\n3. Observe that the pre-fix menu did not offer the full PRD filter set, and options such as `Creator`, `Due date`, `Cycle`, and `Estimate` were not wired to real data."
+      },
+      {
+        "severity": "minor",
+        "description": "The filter trigger text did not match Linear's primary affordance.",
+        "expected": "The team issue header should use an `Add filter` affordance like Linear.",
+        "actual": "Before the fix, the clone labeled the trigger `Filter`, which did not match the reference product and was less explicit once active chips were present.",
+        "reproduction": "1. Open `/team/ONB/all`.\n2. Inspect the header control to the right of the issue tabs.\n3. Observe that the pre-fix label reads `Filter` instead of `Add filter`."
+      }
+    ],
+    "fix_description": "Persisted team filter state in local storage by scope, extended the team issues API and shared filter bar to support project/cycle/creator/due-date/estimate options plus matching logic, updated the header affordance to `Add filter`, and added regression coverage for both the new filter types and cross-route persistence."
   }
 ]

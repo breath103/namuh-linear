@@ -27,10 +27,15 @@ interface IssueData {
   stateId: string;
   assigneeId: string | null;
   assignee: { name: string; image?: string } | null;
+  creatorId: string | null;
+  creatorName: string | null;
   labels: { name: string; color: string }[];
   labelIds: string[];
   projectId: string | null;
   projectName: string | null;
+  cycleId: string | null;
+  cycleName: string | null;
+  estimate: number | null;
   dueDate: string | null;
   createdAt: string;
 }
@@ -50,6 +55,11 @@ interface FilterOptions {
   statuses: { id: string; name: string; category: string; color: string }[];
   assignees: { id: string; name: string; image?: string | null }[];
   labels: { id: string; name: string; color: string }[];
+  projects: { id: string; name: string }[];
+  creators: { id: string; name: string }[];
+  cycles: { id: string; name: string }[];
+  estimates: { value: string; label: string }[];
+  dueDates: { value: string; label: string }[];
   priorities: { value: string; label: string }[];
 }
 
@@ -84,7 +94,7 @@ export default function TeamIssuesPage() {
     params.key,
     "list",
   );
-  const { filters, updateFilters } = useFilters();
+  const { filters, updateFilters } = useFilters(`team:${params.key}`);
 
   const fetchIssues = useCallback(async () => {
     try {
@@ -257,6 +267,11 @@ export default function TeamIssuesPage() {
             availableStatuses={data.filterOptions?.statuses ?? []}
             availableLabels={data.filterOptions?.labels ?? []}
             availableAssignees={data.filterOptions?.assignees ?? []}
+            availableProjects={data.filterOptions?.projects ?? []}
+            availableCreators={data.filterOptions?.creators ?? []}
+            availableCycles={data.filterOptions?.cycles ?? []}
+            availableEstimates={data.filterOptions?.estimates ?? []}
+            availableDueDates={data.filterOptions?.dueDates ?? []}
             availablePriorities={
               data.filterOptions?.priorities ?? [
                 { value: "urgent", label: "Urgent" },

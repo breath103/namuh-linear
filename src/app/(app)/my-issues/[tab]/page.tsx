@@ -99,7 +99,7 @@ export default function MyIssuesTabPage() {
   const [displayProperties, setDisplayProperties] =
     useState<DisplayProperties>(defaultDisplayProps);
 
-  const { filters, updateFilters } = useFilters();
+  const { filters, updateFilters } = useFilters(`my-issues:${activeTab}`);
 
   useEffect(() => {
     setLoading(true);

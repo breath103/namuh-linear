@@ -10,8 +10,10 @@ export type FilterType =
   | "assignee"
   | "label"
   | "project"
+  | "cycle"
   | "creator"
-  | "dueDate";
+  | "dueDate"
+  | "estimate";
 
 export type FilterOperator = "is" | "isNot";
 
@@ -45,6 +47,31 @@ interface PriorityOption {
   label: string;
 }
 
+interface ProjectOption {
+  id: string;
+  name: string;
+}
+
+interface CreatorOption {
+  id: string;
+  name: string;
+}
+
+interface CycleOption {
+  id: string;
+  name: string;
+}
+
+interface EstimateOption {
+  value: string;
+  label: string;
+}
+
+interface DueDateOption {
+  value: string;
+  label: string;
+}
+
 export interface FilterBarProps {
   filters: FilterCondition[];
   onFiltersChange: (filters: FilterCondition[]) => void;
@@ -52,6 +79,11 @@ export interface FilterBarProps {
   availableLabels: LabelOption[];
   availableAssignees: AssigneeOption[];
   availablePriorities: PriorityOption[];
+  availableProjects?: ProjectOption[];
+  availableCreators?: CreatorOption[];
+  availableCycles?: CycleOption[];
+  availableEstimates?: EstimateOption[];
+  availableDueDates?: DueDateOption[];
 }
 
 // ─── Filter Application Logic ────────────────────────────────────────
@@ -63,6 +95,10 @@ interface FilterableIssue {
   assigneeId: string | null;
   labelIds: string[];
   projectId: string | null;
+  creatorId?: string | null;
+  cycleId?: string | null;
+  dueDate?: string | Date | null;
+  estimate?: number | string | null;
 }
 
 export function applyFilters<T extends FilterableIssue>(
@@ -96,9 +132,60 @@ function matchesValue(
       return values.some((v) => issue.labelIds.includes(v));
     case "project":
       return values.includes(issue.projectId ?? "");
+    case "cycle":
+      return values.includes(issue.cycleId ?? "");
+    case "creator":
+      return values.includes(issue.creatorId ?? "");
+    case "dueDate":
+      return values.includes(normalizeDueDate(issue.dueDate));
+    case "estimate":
+      return values.includes(normalizeEstimate(issue.estimate));
     default:
       return true;
   }
+}
+
+function normalizeDueDate(value: string | Date | null | undefined): string {
+  if (!value) {
+    return "";
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString().split("T")[0] ?? "";
+  }
+
+  return value.includes("T") ? (value.split("T")[0] ?? value) : value;
+}
+
+function formatDueDateLabel(value: string): string {
+  if (!value) {
+    return "No due date";
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year:
+      date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+  });
+}
+
+function normalizeEstimate(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  if (typeof value === "number") {
+    return String(value);
+  }
+
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? value : String(parsed);
 }
 
 // ─── Filter Type Menu ────────────────────────────────────────────────
@@ -109,8 +196,10 @@ const filterTypeLabels: { type: FilterType; label: string }[] = [
   { type: "assignee", label: "Assignee" },
   { type: "label", label: "Label" },
   { type: "project", label: "Project" },
+  { type: "cycle", label: "Cycle" },
   { type: "creator", label: "Creator" },
   { type: "dueDate", label: "Due date" },
+  { type: "estimate", label: "Estimate" },
 ];
 
 // ─── Component ───────────────────────────────────────────────────────
@@ -127,6 +216,11 @@ export function FilterBar({
   availableLabels,
   availableAssignees,
   availablePriorities,
+  availableProjects = [],
+  availableCreators = [],
+  availableCycles = [],
+  availableEstimates = [],
+  availableDueDates = [],
 }: FilterBarProps) {
   const [menu, setMenu] = useState<MenuState>({ step: "closed" });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -193,6 +287,21 @@ export function FilterBar({
         );
       case "label":
         return availableLabels.find((l) => l.id === valueId)?.name ?? valueId;
+      case "project":
+        return availableProjects.find((p) => p.id === valueId)?.name ?? valueId;
+      case "cycle":
+        return availableCycles.find((c) => c.id === valueId)?.name ?? valueId;
+      case "creator":
+        return availableCreators.find((c) => c.id === valueId)?.name ?? valueId;
+      case "dueDate":
+        return (
+          availableDueDates.find((d) => d.value === valueId)?.label ??
+          formatDueDateLabel(valueId)
+        );
+      case "estimate":
+        return (
+          availableEstimates.find((e) => e.value === valueId)?.label ?? valueId
+        );
       default:
         return valueId;
     }
@@ -263,7 +372,7 @@ export function FilterBar({
           >
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
           </svg>
-          Filter
+          Add filter
         </button>
 
         {/* Filter type menu */}
@@ -296,6 +405,11 @@ export function FilterBar({
               availableLabels,
               availableAssignees,
               availablePriorities,
+              availableProjects,
+              availableCreators,
+              availableCycles,
+              availableEstimates,
+              availableDueDates,
               handleSelectValue,
             )}
           </div>
@@ -373,6 +487,14 @@ function FilterTypeIcon({ type }: { type: FilterType }) {
           <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
         </svg>
       );
+    case "cycle":
+      return (
+        <svg {...svgProps}>
+          <title>Cycle icon</title>
+          <path d="M21 12a9 9 0 1 1-3.29-6.94" />
+          <path d="M21 3v6h-6" />
+        </svg>
+      );
     case "dueDate":
       return (
         <svg {...svgProps}>
@@ -381,6 +503,16 @@ function FilterTypeIcon({ type }: { type: FilterType }) {
           <line x1="16" x2="16" y1="2" y2="6" />
           <line x1="8" x2="8" y1="2" y2="6" />
           <line x1="3" x2="21" y1="10" y2="10" />
+        </svg>
+      );
+    case "estimate":
+      return (
+        <svg {...svgProps}>
+          <title>Estimate icon</title>
+          <path d="M4 19h16" />
+          <path d="M7 15h2" />
+          <path d="M11 11h2" />
+          <path d="M15 7h2" />
         </svg>
       );
     default:
@@ -397,6 +529,11 @@ function renderValueOptions(
   labels: LabelOption[],
   assignees: AssigneeOption[],
   priorities: PriorityOption[],
+  projects: ProjectOption[],
+  creators: CreatorOption[],
+  cycles: CycleOption[],
+  estimates: EstimateOption[],
+  dueDates: DueDateOption[],
   onSelect: (type: FilterType, value: string) => void,
 ) {
   const activeFilter = currentFilters.find((f) => f.type === filterType);
@@ -456,13 +593,63 @@ function renderValueOptions(
           }
         />
       ));
-    default:
-      return (
-        <div className="px-3 py-2 text-[12px] text-[var(--color-text-secondary)]">
-          No options available
-        </div>
+    case "project":
+      return renderSelectOptions(projects, activeValues, filterType, onSelect);
+    case "cycle":
+      return renderSelectOptions(cycles, activeValues, filterType, onSelect);
+    case "creator":
+      return renderSelectOptions(creators, activeValues, filterType, onSelect);
+    case "estimate":
+      return renderSelectOptions(
+        estimates.map((estimate) => ({
+          id: estimate.value,
+          name: estimate.label,
+        })),
+        activeValues,
+        filterType,
+        onSelect,
       );
+    case "dueDate":
+      return renderSelectOptions(
+        dueDates.map((dueDate) => ({
+          id: dueDate.value,
+          name: dueDate.label,
+        })),
+        activeValues,
+        filterType,
+        onSelect,
+      );
+    default:
+      return <EmptyValueOptions />;
   }
+}
+
+function renderSelectOptions(
+  options: { id: string; name: string }[],
+  activeValues: string[],
+  filterType: FilterType,
+  onSelect: (type: FilterType, value: string) => void,
+) {
+  if (options.length === 0) {
+    return <EmptyValueOptions />;
+  }
+
+  return options.map((option) => (
+    <ValueOption
+      key={option.id}
+      label={option.name}
+      selected={activeValues.includes(option.id)}
+      onClick={() => onSelect(filterType, option.id)}
+    />
+  ));
+}
+
+function EmptyValueOptions() {
+  return (
+    <div className="px-3 py-2 text-[12px] text-[var(--color-text-secondary)]">
+      No options available
+    </div>
+  );
 }
 
 function ValueOption({

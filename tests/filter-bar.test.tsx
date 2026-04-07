@@ -27,6 +27,26 @@ describe("FilterBar", () => {
       { id: "u1", name: "Alice" },
       { id: "u2", name: "Bob" },
     ],
+    availableProjects: [
+      { id: "p1", name: "Project Alpha" },
+      { id: "p2", name: "Project Beta" },
+    ],
+    availableCreators: [
+      { id: "c1", name: "Chris" },
+      { id: "c2", name: "Dana" },
+    ],
+    availableCycles: [
+      { id: "cy1", name: "Cycle 1" },
+      { id: "cy2", name: "Cycle 2" },
+    ],
+    availableEstimates: [
+      { value: "1", label: "1" },
+      { value: "2", label: "2" },
+    ],
+    availableDueDates: [
+      { value: "2026-04-07", label: "Apr 7" },
+      { value: "2026-04-08", label: "Apr 8" },
+    ],
     availablePriorities: [
       { value: "urgent", label: "Urgent" },
       { value: "high", label: "High" },
@@ -38,21 +58,26 @@ describe("FilterBar", () => {
 
   it("renders Add Filter button", () => {
     render(<FilterBar {...defaultProps} />);
-    expect(screen.getByText("Filter")).toBeDefined();
+    expect(screen.getByText("Add filter")).toBeDefined();
   });
 
   it("shows filter type menu when Add Filter clicked", () => {
     render(<FilterBar {...defaultProps} />);
-    fireEvent.click(screen.getByText("Filter"));
+    fireEvent.click(screen.getByText("Add filter"));
     expect(screen.getByText("Status")).toBeDefined();
     expect(screen.getByText("Priority")).toBeDefined();
     expect(screen.getByText("Assignee")).toBeDefined();
     expect(screen.getByText("Label")).toBeDefined();
+    expect(screen.getByText("Project")).toBeDefined();
+    expect(screen.getByText("Cycle")).toBeDefined();
+    expect(screen.getByText("Creator")).toBeDefined();
+    expect(screen.getByText("Due date")).toBeDefined();
+    expect(screen.getByText("Estimate")).toBeDefined();
   });
 
   it("shows status options when Status filter type selected", () => {
     render(<FilterBar {...defaultProps} />);
-    fireEvent.click(screen.getByText("Filter"));
+    fireEvent.click(screen.getByText("Add filter"));
     fireEvent.click(screen.getByText("Status"));
     expect(screen.getByText("Backlog")).toBeDefined();
     expect(screen.getByText("In Progress")).toBeDefined();
@@ -62,7 +87,7 @@ describe("FilterBar", () => {
   it("adds a status filter when status option clicked", () => {
     const onFiltersChange = vi.fn();
     render(<FilterBar {...defaultProps} onFiltersChange={onFiltersChange} />);
-    fireEvent.click(screen.getByText("Filter"));
+    fireEvent.click(screen.getByText("Add filter"));
     fireEvent.click(screen.getByText("Status"));
     fireEvent.click(screen.getByText("Backlog"));
     expect(onFiltersChange).toHaveBeenCalledWith([
@@ -72,7 +97,7 @@ describe("FilterBar", () => {
 
   it("shows priority options when Priority filter type selected", () => {
     render(<FilterBar {...defaultProps} />);
-    fireEvent.click(screen.getByText("Filter"));
+    fireEvent.click(screen.getByText("Add filter"));
     fireEvent.click(screen.getByText("Priority"));
     expect(screen.getByText("Urgent")).toBeDefined();
     expect(screen.getByText("High")).toBeDefined();
@@ -83,7 +108,7 @@ describe("FilterBar", () => {
   it("adds a priority filter when priority option clicked", () => {
     const onFiltersChange = vi.fn();
     render(<FilterBar {...defaultProps} onFiltersChange={onFiltersChange} />);
-    fireEvent.click(screen.getByText("Filter"));
+    fireEvent.click(screen.getByText("Add filter"));
     fireEvent.click(screen.getByText("Priority"));
     fireEvent.click(screen.getByText("Urgent"));
     expect(onFiltersChange).toHaveBeenCalledWith([
@@ -93,7 +118,7 @@ describe("FilterBar", () => {
 
   it("shows assignee options when Assignee filter type selected", () => {
     render(<FilterBar {...defaultProps} />);
-    fireEvent.click(screen.getByText("Filter"));
+    fireEvent.click(screen.getByText("Add filter"));
     fireEvent.click(screen.getByText("Assignee"));
     expect(screen.getByText("Alice")).toBeDefined();
     expect(screen.getByText("Bob")).toBeDefined();
@@ -101,10 +126,38 @@ describe("FilterBar", () => {
 
   it("shows label options when Label filter type selected", () => {
     render(<FilterBar {...defaultProps} />);
-    fireEvent.click(screen.getByText("Filter"));
+    fireEvent.click(screen.getByText("Add filter"));
     fireEvent.click(screen.getByText("Label"));
     expect(screen.getByText("Bug")).toBeDefined();
     expect(screen.getByText("Feature")).toBeDefined();
+  });
+
+  it("shows project, creator, cycle, due date, and estimate options", () => {
+    render(<FilterBar {...defaultProps} />);
+
+    fireEvent.click(screen.getByText("Add filter"));
+    fireEvent.click(screen.getByText("Project"));
+    expect(screen.getByText("Project Alpha")).toBeDefined();
+
+    fireEvent.click(screen.getByText("Add filter"));
+    fireEvent.click(screen.getByText("Add filter"));
+    fireEvent.click(screen.getByText("Creator"));
+    expect(screen.getByText("Chris")).toBeDefined();
+
+    fireEvent.click(screen.getByText("Add filter"));
+    fireEvent.click(screen.getByText("Add filter"));
+    fireEvent.click(screen.getByText("Cycle"));
+    expect(screen.getByText("Cycle 1")).toBeDefined();
+
+    fireEvent.click(screen.getByText("Add filter"));
+    fireEvent.click(screen.getByText("Add filter"));
+    fireEvent.click(screen.getByText("Due date"));
+    expect(screen.getByText("Apr 7")).toBeDefined();
+
+    fireEvent.click(screen.getByText("Add filter"));
+    fireEvent.click(screen.getByText("Add filter"));
+    fireEvent.click(screen.getByText("Estimate"));
+    expect(screen.getByText("1")).toBeDefined();
   });
 
   it("renders active filter chips", () => {
@@ -170,7 +223,7 @@ describe("FilterBar", () => {
         onFiltersChange={onFiltersChange}
       />,
     );
-    fireEvent.click(screen.getByText("Filter"));
+    fireEvent.click(screen.getByText("Add filter"));
     // "Status" appears in both the chip and the menu — use getAllByText and pick the menu item
     const statusItems = screen.getAllByText("Status");
     // The last one is in the filter type menu
@@ -192,7 +245,7 @@ describe("FilterBar", () => {
   it("supports label filter with color dots", () => {
     const onFiltersChange = vi.fn();
     render(<FilterBar {...defaultProps} onFiltersChange={onFiltersChange} />);
-    fireEvent.click(screen.getByText("Filter"));
+    fireEvent.click(screen.getByText("Add filter"));
     fireEvent.click(screen.getByText("Label"));
     fireEvent.click(screen.getByText("Bug"));
     expect(onFiltersChange).toHaveBeenCalledWith([
@@ -210,6 +263,10 @@ describe("FilterBar - applyFilters utility", () => {
       assigneeId: "u1",
       labelIds: ["l1"],
       projectId: "p1",
+      creatorId: "c1",
+      cycleId: "cy1",
+      dueDate: "2026-04-07",
+      estimate: 1,
     },
     {
       id: "i2",
@@ -218,6 +275,10 @@ describe("FilterBar - applyFilters utility", () => {
       assigneeId: "u2",
       labelIds: ["l2"],
       projectId: null,
+      creatorId: "c2",
+      cycleId: null,
+      dueDate: "2026-04-08",
+      estimate: 2,
     },
     {
       id: "i3",
@@ -226,6 +287,10 @@ describe("FilterBar - applyFilters utility", () => {
       assigneeId: null,
       labelIds: [],
       projectId: "p1",
+      creatorId: "c1",
+      cycleId: "cy2",
+      dueDate: null,
+      estimate: null,
     },
   ];
 
@@ -264,6 +329,38 @@ describe("FilterBar - applyFilters utility", () => {
     ]);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("i1");
+  });
+
+  it("filters by project, creator, cycle, due date, and estimate", () => {
+    expect(
+      applyFilters(mockIssues, [
+        { type: "project", operator: "is", values: ["p1"] },
+      ]),
+    ).toHaveLength(2);
+
+    expect(
+      applyFilters(mockIssues, [
+        { type: "creator", operator: "is", values: ["c2"] },
+      ]),
+    ).toEqual([mockIssues[1]]);
+
+    expect(
+      applyFilters(mockIssues, [
+        { type: "cycle", operator: "is", values: ["cy1"] },
+      ]),
+    ).toEqual([mockIssues[0]]);
+
+    expect(
+      applyFilters(mockIssues, [
+        { type: "dueDate", operator: "is", values: ["2026-04-08"] },
+      ]),
+    ).toEqual([mockIssues[1]]);
+
+    expect(
+      applyFilters(mockIssues, [
+        { type: "estimate", operator: "is", values: ["1"] },
+      ]),
+    ).toEqual([mockIssues[0]]);
   });
 
   it("applies multiple filters with AND logic", () => {

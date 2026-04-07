@@ -177,7 +177,7 @@ describe("MyIssuesTabPage", () => {
     mockFetch(sampleData);
     render(<MyIssuesTabPage />);
     await screen.findByText("ENG-1");
-    expect(screen.getByText("Filter")).toBeDefined();
+    expect(screen.getByText("Add filter")).toBeDefined();
   });
 
   it("calls fetch with correct tab parameter", async () => {

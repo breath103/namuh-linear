@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
+  cycle,
   issue,
   issueLabel,
   label,
@@ -54,10 +55,13 @@ export async function GET(
       priority: issue.priority,
       stateId: issue.stateId,
       assigneeId: issue.assigneeId,
+      creatorId: issue.creatorId,
       assigneeName: user.name,
       assigneeImage: user.image,
       projectId: issue.projectId,
       projectName: project.name,
+      cycleId: issue.cycleId,
+      estimate: issue.estimate,
       dueDate: issue.dueDate,
       createdAt: issue.createdAt,
       sortOrder: issue.sortOrder,
@@ -95,6 +99,36 @@ export async function GET(
     }
   }
 
+  const creatorIds = [
+    ...new Set(
+      issues.map((i) => i.creatorId).filter((id): id is string => !!id),
+    ),
+  ];
+  const creators =
+    creatorIds.length > 0
+      ? await db
+          .select({ id: user.id, name: user.name })
+          .from(user)
+          .where(inArray(user.id, creatorIds))
+      : [];
+  const creatorMap = new Map(
+    creators.map((creator) => [creator.id, creator.name ?? "Unknown user"]),
+  );
+
+  const cycleIds = [
+    ...new Set(issues.map((i) => i.cycleId).filter((id): id is string => !!id)),
+  ];
+  const cycles =
+    cycleIds.length > 0
+      ? await db
+          .select({ id: cycle.id, name: cycle.name, number: cycle.number })
+          .from(cycle)
+          .where(inArray(cycle.id, cycleIds))
+      : [];
+  const cycleMap = new Map(
+    cycles.map((item) => [item.id, item.name ?? `Cycle ${item.number}`]),
+  );
+
   // Group issues by workflow state
   const grouped = states.map((state) => ({
     state: {
@@ -120,10 +154,15 @@ export async function GET(
               image: i.assigneeImage,
             }
           : null,
+        creatorId: i.creatorId,
+        creatorName: creatorMap.get(i.creatorId) ?? null,
         labels: labelsMap[i.id] ?? [],
         labelIds: (labelsMap[i.id] ?? []).map((l) => l.name),
         projectId: i.projectId,
         projectName: i.projectName,
+        cycleId: i.cycleId,
+        cycleName: i.cycleId ? (cycleMap.get(i.cycleId) ?? null) : null,
+        estimate: i.estimate,
         dueDate: i.dueDate,
         createdAt: i.createdAt,
       })),
@@ -155,6 +194,66 @@ export async function GET(
     }
   }
 
+  const uniqueProjects = issues
+    .filter((i) => i.projectId && i.projectName)
+    .reduce<{ id: string; name: string }[]>((projects, issueRecord) => {
+      if (
+        projects.some(
+          (projectRecord) => projectRecord.id === issueRecord.projectId,
+        )
+      ) {
+        return projects;
+      }
+
+      projects.push({
+        id: issueRecord.projectId as string,
+        name: issueRecord.projectName as string,
+      });
+      return projects;
+    }, []);
+
+  const uniqueCreators = creators
+    .filter((creator) => creator.name)
+    .map((creator) => ({
+      id: creator.id,
+      name: creator.name as string,
+    }));
+
+  const uniqueCycles = cycles.map((item) => ({
+    id: item.id,
+    name: item.name ?? `Cycle ${item.number}`,
+  }));
+
+  const uniqueEstimates = [
+    ...new Set(issues.map((i) => i.estimate).filter((value) => value !== null)),
+  ]
+    .sort((a, b) => Number(a) - Number(b))
+    .map((value) => ({
+      value: String(value),
+      label: String(value),
+    }));
+
+  const uniqueDueDates = [
+    ...new Set(
+      issues
+        .map((i) => (i.dueDate ? i.dueDate.toISOString().split("T")[0] : null))
+        .filter((value): value is string => !!value),
+    ),
+  ]
+    .sort()
+    .map((value) => ({
+      value,
+      label: new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year:
+          new Date(`${value}T00:00:00`).getFullYear() !==
+          new Date().getFullYear()
+            ? "numeric"
+            : undefined,
+      }),
+    }));
+
   return NextResponse.json({
     team: { id: teamRecord.id, name: teamRecord.name, key: teamRecord.key },
     groups: grouped,
@@ -167,6 +266,11 @@ export async function GET(
       })),
       assignees: uniqueAssignees,
       labels: uniqueLabels,
+      projects: uniqueProjects,
+      creators: uniqueCreators,
+      cycles: uniqueCycles,
+      estimates: uniqueEstimates,
+      dueDates: uniqueDueDates,
       priorities: [
         { value: "urgent", label: "Urgent" },
         { value: "high", label: "High" },
