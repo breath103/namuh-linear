@@ -76,6 +76,30 @@ describe("Auth middleware", () => {
     expect(redirectUrl.searchParams.get("callbackUrl")).toBe("/inbox");
   });
 
+  it("redirects unauthenticated users away from /create-workspace", async () => {
+    mockRedirect.mockClear();
+    const { middleware } = await import("@/middleware");
+    const req = createMockRequest("/create-workspace");
+    await middleware(req as never);
+    const redirectUrl = mockRedirect.mock.calls[0][0] as URL;
+    expect(redirectUrl.pathname).toBe("/login");
+    expect(redirectUrl.searchParams.get("callbackUrl")).toBe(
+      "/create-workspace",
+    );
+  });
+
+  it("redirects unauthenticated users away from /onboarding routes", async () => {
+    mockRedirect.mockClear();
+    const { middleware } = await import("@/middleware");
+    const req = createMockRequest("/onboarding/invite");
+    await middleware(req as never);
+    const redirectUrl = mockRedirect.mock.calls[0][0] as URL;
+    expect(redirectUrl.pathname).toBe("/login");
+    expect(redirectUrl.searchParams.get("callbackUrl")).toBe(
+      "/onboarding/invite",
+    );
+  });
+
   it("allows authenticated requests with session cookie", async () => {
     mockNext.mockClear();
     const { middleware } = await import("@/middleware");

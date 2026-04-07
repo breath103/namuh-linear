@@ -206,5 +206,44 @@
     ],
     "bugs_found": [],
     "fix_description": "Implemented real 6-digit Better Auth magic-link tokens, added the missing code-entry UI and invalid-code handling on `/login`, and added a non-production SES preview fallback so local magic-link auth keeps working when AWS credentials are unavailable."
+  },
+  {
+    "feature_id": "auth-003",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 541 unit tests passed before the auth-003 fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the clone loaded successfully on `http://localhost:3015`.",
+      "Reproduced the main auth leak with live HTTP checks: unauthenticated `GET /create-workspace` and `GET /onboarding/invite?workspaceId=test` both returned `200 OK` instead of redirecting to login.",
+      "Captured the pre-fix unauthenticated workspace-creation screen in Ever and saved it to `ralph/screenshots/qa/auth-003-attempt-1-create-workspace-public.jpg`.",
+      "Verified the intended protected-route baseline still existed for app routes: unauthenticated `GET /team/ABC/all` returned `307` to `/login?callbackUrl=%2Fteam%2FABC%2Fall`.",
+      "Verified unauthenticated API behavior separately: `POST /api/workspaces` without a session returned `401 {\"error\":\"Unauthorized\"}`.",
+      "Fixed the route leak by removing `/create-workspace` and `/onboarding/*` from the middleware allowlist, then added regression coverage for both routes in `tests/middleware.test.ts`.",
+      "Fixed the login redirect bug by preserving the `callbackUrl` query parameter through Google sign-in, magic-link requests, and magic-link verification, with new regression coverage in `tests/login-page.test.tsx`.",
+      "Re-verified the logged-out browser flow in Ever after the fix: navigating to `/create-workspace` now shows the login page (`ralph/screenshots/qa/auth-003-attempt-1-create-workspace-logged-out.jpg`), and navigating to `/team/ABC/all` shows `/login?callbackUrl=%2Fteam%2FABC%2Fall` (`ralph/screenshots/qa/auth-003-attempt-1-team-redirect-login.jpg`).",
+      "Verified real Better Auth session creation with a fresh magic-link login via `POST /api/auth/sign-in/magic-link` plus `GET /api/auth/magic-link/verify`: `/api/auth/get-session` returned a live session for `auth003+1775541702@example.com`, and the session token existed in the Postgres `session` table.",
+      "Verified authenticated protected-route behavior with that real session: `GET /create-workspace` returned `200 OK`, and `GET /team/ABC/all` redirected to `/create-workspace` because the user was authenticated but had not created a workspace yet.",
+      "Verified logout cleanup end to end: `POST /api/auth/sign-out` returned `200 {\"success\":true}`, subsequent `/api/auth/get-session` requests returned `null`, and the previously issued session token no longer existed in the Postgres `session` table.",
+      "Ran `make check`; typecheck and Biome both passed.",
+      "Ran `make test`; all 546 unit tests passed after the auth-003 fixes.",
+      "Ran full `make test-e2e` because the fix touched shared auth middleware and login routing. Smoke passed, but the pre-existing unrelated command-palette specs still fail because they start from protected `/team/ENG/all` routes while logged out and land on the login page."
+    ],
+    "bugs_found": [
+      {
+        "severity": "critical",
+        "description": "Unauthenticated users could open protected onboarding pages directly.",
+        "expected": "Requests to `/create-workspace` and `/onboarding/*` should redirect unauthenticated users to `/login` with a `callbackUrl` so onboarding is only reachable behind a real Better Auth session.",
+        "actual": "The middleware treated `/create-workspace` and `/onboarding` as public paths, so unauthenticated requests returned `200 OK` and rendered the onboarding UI.",
+        "reproduction": "1. Start the app without a Better Auth session.\n2. Run `curl -i http://localhost:3015/create-workspace` and `curl -i 'http://localhost:3015/onboarding/invite?workspaceId=test'`.\n3. Observe `200 OK` responses and the onboarding pages rendering instead of redirecting to `/login`."
+      },
+      {
+        "severity": "major",
+        "description": "The login page ignored `callbackUrl` when users were redirected from protected routes.",
+        "expected": "When `/login` is opened with `?callbackUrl=...`, Google sign-in and magic-link verification should preserve that callback so the user returns to the originally requested protected route after authentication.",
+        "actual": "The login client hardcoded `callbackURL: \"/\"` and `errorCallbackURL: \"/login\"`, which dropped the protected-route destination during both Google and magic-link sign-in.",
+        "reproduction": "1. Open `/login?callbackUrl=%2Fteam%2FABC%2Fboard`.\n2. Trigger `Continue with Google` or `Continue with Email`.\n3. Inspect the sign-in request parameters or the magic-link verification URL and observe that they use `callbackURL=/` instead of the incoming `callbackUrl`."
+      }
+    ],
+    "fix_description": "Removed protected onboarding pages from the middleware public allowlist, preserved `callbackUrl` throughout the login client flow, and added regression tests for both fixes. `qa_pass` is now true for auth-003; the remaining `make test-e2e` failures are pre-existing command-palette specs unrelated to this feature."
   }
 ]

@@ -12,12 +12,13 @@ vi.mock("@/lib/auth-client", () => ({
 }));
 
 const assignMock = vi.fn();
-
-vi.stubGlobal("location", {
+const mockLocation = {
   ...window.location,
   assign: assignMock,
   search: "",
-});
+};
+
+vi.stubGlobal("location", mockLocation);
 
 import LoginPage from "@/app/(auth)/login/page";
 import { signIn } from "@/lib/auth-client";
@@ -27,6 +28,7 @@ describe("Login page", () => {
     cleanup();
     vi.clearAllMocks();
     assignMock.mockReset();
+    mockLocation.search = "";
   });
 
   it("renders the login title", () => {
@@ -50,6 +52,16 @@ describe("Login page", () => {
     expect(signIn.social).toHaveBeenCalledWith({
       provider: "google",
       callbackURL: "/",
+    });
+  });
+
+  it("uses the callbackUrl query param for Google sign-in", () => {
+    mockLocation.search = "?callbackUrl=%2Fteam%2FABC%2Fboard";
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText("Continue with Google"));
+    expect(signIn.social).toHaveBeenCalledWith({
+      provider: "google",
+      callbackURL: "/team/ABC/board",
     });
   });
 
@@ -93,6 +105,24 @@ describe("Login page", () => {
       email: "test@example.com",
       callbackURL: "/",
       errorCallbackURL: "/login",
+    });
+  });
+
+  it("preserves callbackUrl when requesting a magic link", async () => {
+    mockLocation.search = "?callbackUrl=%2Fteam%2FABC%2Fboard";
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText("Continue with Email"));
+
+    const input = screen.getByPlaceholderText("Enter your email address...");
+    fireEvent.change(input, { target: { value: "test@example.com" } });
+    fireEvent.submit(input.closest("form") as HTMLFormElement);
+
+    await vi.waitFor(() => {
+      expect(signIn.magicLink).toHaveBeenCalledWith({
+        email: "test@example.com",
+        callbackURL: "/team/ABC/board",
+        errorCallbackURL: "/login?callbackUrl=%2Fteam%2FABC%2Fboard",
+      });
     });
   });
 
@@ -168,6 +198,30 @@ describe("Login page", () => {
 
     expect(assignMock).toHaveBeenCalledWith(
       "http://localhost:3000/api/auth/magic-link/verify?token=123456&callbackURL=%2F&errorCallbackURL=%2Flogin",
+    );
+  });
+
+  it("preserves callbackUrl when verifying a valid code", async () => {
+    mockLocation.search = "?callbackUrl=%2Fteam%2FABC%2Fboard";
+    render(<LoginPage />);
+    fireEvent.click(screen.getByText("Continue with Email"));
+
+    const emailInput = screen.getByPlaceholderText(
+      "Enter your email address...",
+    );
+    fireEvent.change(emailInput, { target: { value: "test@example.com" } });
+    fireEvent.submit(emailInput.closest("form") as HTMLFormElement);
+
+    await vi.waitFor(() => {
+      expect(screen.getByPlaceholderText("Enter 6-digit code")).toBeDefined();
+    });
+
+    const codeInput = screen.getByPlaceholderText("Enter 6-digit code");
+    fireEvent.change(codeInput, { target: { value: "123456" } });
+    fireEvent.submit(codeInput.closest("form") as HTMLFormElement);
+
+    expect(assignMock).toHaveBeenCalledWith(
+      "http://localhost:3000/api/auth/magic-link/verify?token=123456&callbackURL=%2Fteam%2FABC%2Fboard&errorCallbackURL=%2Flogin%3FcallbackUrl%3D%252Fteam%252FABC%252Fboard",
     );
   });
 });

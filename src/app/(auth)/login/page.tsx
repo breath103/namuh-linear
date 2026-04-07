@@ -13,6 +13,36 @@ const authErrorMessages: Record<string, string> = {
     "That sign-in code has already been used. Request a new email to continue.",
 };
 
+function getSafeCallbackUrl(): string {
+  if (typeof window === "undefined") {
+    return "/";
+  }
+
+  const callbackUrl = new URLSearchParams(window.location.search).get(
+    "callbackUrl",
+  );
+
+  if (
+    !callbackUrl ||
+    !callbackUrl.startsWith("/") ||
+    callbackUrl.startsWith("//")
+  ) {
+    return "/";
+  }
+
+  return callbackUrl;
+}
+
+function getErrorCallbackUrl(callbackUrl: string): string {
+  if (callbackUrl === "/") {
+    return "/login";
+  }
+
+  const errorCallbackUrl = new URL("/login", window.location.origin);
+  errorCallbackUrl.searchParams.set("callbackUrl", callbackUrl);
+  return `${errorCallbackUrl.pathname}${errorCallbackUrl.search}`;
+}
+
 export default function LoginPage() {
   const [step, setStep] = useState<LoginStep>("choose");
   const [email, setEmail] = useState("");
@@ -31,7 +61,10 @@ export default function LoginPage() {
   async function handleGoogleLogin() {
     setLoading(true);
     setError("");
-    await signIn.social({ provider: "google", callbackURL: "/" });
+    await signIn.social({
+      provider: "google",
+      callbackURL: getSafeCallbackUrl(),
+    });
   }
 
   async function handleEmailSubmit(e: React.FormEvent) {
@@ -42,10 +75,11 @@ export default function LoginPage() {
     setError("");
 
     try {
+      const callbackUrl = getSafeCallbackUrl();
       await signIn.magicLink({
         email,
-        callbackURL: "/",
-        errorCallbackURL: "/login",
+        callbackURL: callbackUrl,
+        errorCallbackURL: getErrorCallbackUrl(callbackUrl),
       });
       setCode("");
       setStep("email-code");
@@ -69,9 +103,13 @@ export default function LoginPage() {
       "/api/auth/magic-link/verify",
       window.location.origin,
     );
+    const callbackUrl = getSafeCallbackUrl();
     verifyUrl.searchParams.set("token", normalizedCode);
-    verifyUrl.searchParams.set("callbackURL", "/");
-    verifyUrl.searchParams.set("errorCallbackURL", "/login");
+    verifyUrl.searchParams.set("callbackURL", callbackUrl);
+    verifyUrl.searchParams.set(
+      "errorCallbackURL",
+      getErrorCallbackUrl(callbackUrl),
+    );
     window.location.assign(verifyUrl.toString());
   }
 
