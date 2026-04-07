@@ -166,5 +166,24 @@
       }
     ],
     "fix_description": "Fixed the missing Postgres runtime configuration by restoring a real local `DATABASE_URL`, adding a development fallback for missing `DATABASE_URL` in the runtime and Drizzle config, creating/pushing the auth schema into Postgres, and restoring Better Auth's Google authorization redirect. `qa_pass` remains false because the Google OAuth client itself is externally misconfigured and still rejects the callback URI."
+  },
+  {
+    "feature_id": "auth-001",
+    "attempt": 2,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 536 unit tests passed.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the clone loaded successfully on `http://localhost:3015`.",
+      "Verified unauthenticated protected-route behavior with `curl http://localhost:3015/team/ABC/all`; the app returned `307` to `/login?callbackUrl=%2Fteam%2FABC%2Fall`.",
+      "Opened `http://localhost:3015/login` in Ever, confirmed the login screen rendered with the Google CTA, and saved screenshots to `ralph/screenshots/qa/auth-001-attempt-2-login.jpg` and `ralph/screenshots/qa/auth-001-attempt-2-after-google.jpg`.",
+      "Verified `POST /api/auth/sign-in/social` returned `200` plus a Google authorization URL whose redirect target is `http://localhost:3015/api/auth/callback/google`.",
+      "Completed the real Google OAuth flow in Ever by selecting an existing Google account; the clone returned to `/create-workspace` for first-login onboarding and saved a screenshot to `ralph/screenshots/qa/auth-001-attempt-2-post-account.jpg`.",
+      "Verified the in-browser Better Auth session after Google callback via `fetch('/api/auth/get-session', { credentials: 'include' })`; it returned a real session plus user payload for `jaeyunha0317@gmail.com`.",
+      "Queried Postgres through the real `namuh_linear` database and confirmed a Google-linked `user` row, `account` row with `provider_id = 'google'`, and active `session` rows exist for the signed-in user.",
+      "Verified session persistence by navigating the authenticated browser to `/` and `/team/ABC/all`; both resolved to the first-login `/create-workspace` path instead of redirecting to `/login`.",
+      "Verified logout by posting to `/api/auth/sign-out` with JSON content; the response returned `200 {\"success\":true}`, `/api/auth/get-session` returned `null`, and navigating back to `/team/ABC/all` redirected to the login page again."
+    ],
+    "bugs_found": [],
+    "fix_description": "No fix needed in attempt 2. Re-verified the previously repaired Better Auth/Postgres setup and confirmed Google OAuth, account creation, session creation, persistence, and logout now work end-to-end."
   }
 ]
