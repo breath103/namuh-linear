@@ -60,6 +60,14 @@ export default async function AcceptInvitePage({
     .from(workspaceInvitation)
     .where(eq(workspaceInvitation.token, token))
     .limit(1);
+  const [workspaceInviteLink] = await db
+    .select({
+      workspaceId: workspace.id,
+      inviteLinkEnabled: workspace.inviteLinkEnabled,
+    })
+    .from(workspace)
+    .where(eq(workspace.inviteLinkToken, token))
+    .limit(1);
 
   const invite =
     storedInvite && storedInvite.status === "pending"
@@ -76,7 +84,14 @@ export default async function AcceptInvitePage({
             email: signedInvite.email,
             role: signedInvite.role,
           }
-        : null;
+        : workspaceInviteLink?.inviteLinkEnabled
+          ? {
+              id: null,
+              workspaceId: workspaceInviteLink.workspaceId,
+              email: null,
+              role: "member" as const,
+            }
+          : null;
 
   if (!invite) {
     return (
@@ -94,7 +109,10 @@ export default async function AcceptInvitePage({
     );
   }
 
-  if (session.user.email.trim().toLowerCase() !== invite.email) {
+  if (
+    invite.email &&
+    session.user.email.trim().toLowerCase() !== invite.email
+  ) {
     return (
       <InviteError
         title="Wrong account"

@@ -1417,5 +1417,45 @@
       }
     ],
     "fix_description": "Removed the invalid UUID aggregation from `GET /api/labels`, hardened the page against fetch/save failures, added working sort and delete interactions, and wired both `New label` and `New group` to live create flows that persist through the real labels API."
+  },
+  {
+    "feature_id": "settings-008",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; the full Vitest suite passed before the feature-specific fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the authenticated smoke flow passed before manual QA.",
+      "Authenticated into the clone in Ever and opened `/settings/security`; reproduced that the page was local-state only, invite links and permission changes reset on reload, `Add domain` was inert, and `SAML & SCIM` did not navigate anywhere.",
+      "Compared the page against the saved Linear reference and confirmed the overall visual structure was close, but the invite link behavior was wrong because it hardcoded a dead `linear.app/join/...` URL instead of a real clone join flow.",
+      "Added a real workspace security settings API, reloaded the page, and verified invite-link state, approved domains, and permission selections persisted across a manual reload.",
+      "Verified the repaired invite link now points to `http://localhost:3015/accept-invite?token=...` and saved screenshots to `ralph/screenshots/qa/settings-008-attempt-1-before-fix.jpg` and `ralph/screenshots/qa/settings-008-attempt-1-after-fix.jpg`.",
+      "Opened the approved-domain modal in Ever, added `example.com`, reloaded `/settings/security`, and confirmed the domain chip persisted along with the updated `New user invitations` permission selection (`Anyone`).",
+      "Started the app with `PLAYWRIGHT_TEST=true`, created a fresh session for `qa-domain-user@example.com` through the test auth route, navigated to `/`, and confirmed the new user auto-joined into the approved workspace instead of being redirected to `/create-workspace`.",
+      "Ran `make check`, `make test`, and `make test-e2e` after the fixes; typecheck, Biome, the full Vitest suite (`661` tests), and the full Playwright suite (`6` tests) all passed."
+    ],
+    "bugs_found": [
+      {
+        "severity": "critical",
+        "description": "The security settings page used only client-side local state, so workspace security changes did not persist or survive a reload.",
+        "expected": "Invite-link toggles, permission settings, authentication settings, and compliance toggles should save to the active workspace and reload with the persisted values.",
+        "actual": "Before the fix, toggling invite links or changing permissions only updated local React state; reloading `/settings/security` restored the hardcoded defaults.",
+        "reproduction": "1. Sign in and open `/settings/security`.\n2. Disable invite links or change `New user invitations` to `Anyone`.\n3. Reload the page.\n4. Observe the values reset to their original defaults."
+      },
+      {
+        "severity": "major",
+        "description": "The generated invite link pointed at a dead `linear.app/join/...` URL and there was no real workspace-join flow behind it.",
+        "expected": "The page should expose a stable invite URL for the current clone and following that link should join the workspace through a real route.",
+        "actual": "Before the fix, the page generated random `https://linear.app/join/...` links in the browser, so the copied link targeted the original product domain and did not map to any clone route or persisted workspace token.",
+        "reproduction": "1. Sign in and open `/settings/security`.\n2. Copy the displayed invite URL.\n3. Observe that it points to `https://linear.app/join/...` instead of the clone.\n4. Reload the page and observe the random link value changes again."
+      },
+      {
+        "severity": "major",
+        "description": "Approved email domains were an inert placeholder, so admins could not manage domains and new matching users were never auto-joined into the workspace.",
+        "expected": "Admins should be able to add/remove approved domains and users signing in with those domains should join the workspace automatically.",
+        "actual": "Before the fix, `Add domain` did nothing, no domains were stored anywhere, and users with matching email domains still fell through to workspace creation.",
+        "reproduction": "1. Sign in and open `/settings/security`.\n2. Click `Add domain` and observe that no modal or save flow appears.\n3. Sign in as a user with a matching domain.\n4. Observe that the user is sent to `/create-workspace` instead of joining the existing workspace."
+      }
+    ],
+    "fix_description": "Added a real workspace security settings API and UI save flow, backed invite links with persistent workspace tokens and an `accept-invite` join path, implemented approved-domain management plus auto-join for matching users, and replaced the inert SAML/SCIM control with a working docs link."
   }
 ]

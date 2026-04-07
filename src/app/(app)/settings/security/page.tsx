@@ -1,15 +1,44 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+type PermissionLevel = "admins" | "members" | "anyone";
+
+type SecuritySettings = {
+  inviteLinkEnabled: boolean;
+  inviteUrl: string;
+  approvedEmailDomains: string[];
+  authentication: {
+    google: boolean;
+    emailPasskey: boolean;
+  };
+  permissions: {
+    invitationsRole: PermissionLevel;
+    teamCreationRole: PermissionLevel;
+    labelManagementRole: PermissionLevel;
+    templateManagementRole: PermissionLevel;
+    apiKeyCreationRole: PermissionLevel;
+    agentGuidanceRole: PermissionLevel;
+  };
+  restrictFileUploads: boolean;
+  improveAi: boolean;
+  webSearch: boolean;
+  hipaa: boolean;
+};
+
+const INVITE_DOCS_URL = "https://linear.app/docs/invite-members";
+const SAML_SCIM_URL = "https://linear.app/docs/saml-and-access-control";
 
 function Toggle({
   enabled,
   onChange,
   label,
+  disabled,
 }: {
   enabled: boolean;
-  onChange: (v: boolean) => void;
+  onChange: (value: boolean) => void;
   label: string;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -17,10 +46,11 @@ function Toggle({
       role="switch"
       aria-checked={enabled}
       aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!enabled)}
-      className={`relative inline-flex h-[20px] w-[36px] shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+      className={`relative inline-flex h-[20px] w-[36px] shrink-0 items-center rounded-full transition-colors ${
         enabled ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]"
-      }`}
+      } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
     >
       <span
         className={`inline-block h-[16px] w-[16px] rounded-full bg-white shadow transition-transform ${
@@ -31,13 +61,24 @@ function Toggle({
   );
 }
 
-function PermissionSelect({ defaultValue }: { defaultValue: string }) {
-  const [value, setValue] = useState(defaultValue);
+function PermissionSelect({
+  value,
+  onChange,
+  disabled,
+  label,
+}: {
+  value: PermissionLevel;
+  onChange: (value: PermissionLevel) => void;
+  disabled?: boolean;
+  label: string;
+}) {
   return (
     <select
+      aria-label={label}
       value={value}
-      onChange={(e) => setValue(e.target.value)}
-      className="rounded-md border border-[var(--color-border)] bg-transparent px-2 py-1 text-[12px] text-[var(--color-text-secondary)] outline-none"
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value as PermissionLevel)}
+      className="rounded-md border border-[var(--color-border)] bg-transparent px-2 py-1 text-[12px] text-[var(--color-text-secondary)] outline-none disabled:cursor-not-allowed disabled:opacity-60"
     >
       <option value="admins">Only admins</option>
       <option value="members">All members</option>
@@ -64,252 +105,611 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-[var(--color-border)] py-3">
+    <div className="flex flex-col gap-3 border-b border-[var(--color-border)] py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1">
         <div className="text-[13px] text-[var(--color-text-primary)]">
           {title}
         </div>
-        {description && (
+        {description ? (
           <div className="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">
             {description}
           </div>
-        )}
+        ) : null}
       </div>
-      <div className="ml-4 shrink-0">{children}</div>
+      <div className="shrink-0">{children}</div>
     </div>
   );
 }
 
-function generateInviteUrl(): string {
-  const chars = "abcdef0123456789";
-  let id = "";
-  for (let i = 0; i < 32; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return `https://linear.app/join/${id}`;
+function normalizeDomain(value: string) {
+  return value.trim().toLowerCase().replace(/^@+/, "");
 }
 
-export default function SecurityPage() {
-  const [inviteLinksEnabled, setInviteLinksEnabled] = useState(true);
-  const [inviteUrl] = useState(() => generateInviteUrl());
-  const [copied, setCopied] = useState(false);
-  const [googleAuth, setGoogleAuth] = useState(true);
-  const [emailPasskey, setEmailPasskey] = useState(true);
-  const [restrictUploads, setRestrictUploads] = useState(false);
-  const [improveAi, setImproveAi] = useState(true);
-  const [webSearch, setWebSearch] = useState(true);
-  const [hipaa, setHipaa] = useState(false);
+async function copyText(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(inviteUrl).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [inviteUrl]);
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "absolute";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
+function buildPayload(security: SecuritySettings) {
+  return {
+    inviteLinkEnabled: security.inviteLinkEnabled,
+    approvedEmailDomains: security.approvedEmailDomains,
+    authentication: security.authentication,
+    permissions: security.permissions,
+    restrictFileUploads: security.restrictFileUploads,
+    improveAi: security.improveAi,
+    webSearch: security.webSearch,
+    hipaa: security.hipaa,
+  };
+}
+
+const PERMISSION_ROWS: Array<{
+  key: keyof SecuritySettings["permissions"];
+  title: string;
+}> = [
+  { key: "invitationsRole", title: "New user invitations" },
+  { key: "teamCreationRole", title: "Team creation" },
+  { key: "labelManagementRole", title: "Manage workspace labels" },
+  { key: "templateManagementRole", title: "Manage workspace templates" },
+  { key: "apiKeyCreationRole", title: "API key creation" },
+  { key: "agentGuidanceRole", title: "Modify agent guidance" },
+];
+
+export default function SecurityPage() {
+  const [security, setSecurity] = useState<SecuritySettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [domainDialogOpen, setDomainDialogOpen] = useState(false);
+  const [domainDraft, setDomainDraft] = useState("");
+
+  useEffect(() => {
+    fetch("/api/workspaces/current/security")
+      .then(async (response) => {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+          security?: SecuritySettings;
+        } | null;
+
+        if (!response.ok || !data?.security) {
+          throw new Error(data?.error ?? "Unable to load security settings.");
+        }
+
+        setSecurity(data.security);
+      })
+      .catch((error: Error) => {
+        setErrorMessage(error.message);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const persistSecurity = useCallback(
+    async (
+      nextSecurity: SecuritySettings,
+      options?: {
+        successMessage?: string;
+      },
+    ) => {
+      if (!security) {
+        return false;
+      }
+
+      const previousSecurity = security;
+      setSecurity(nextSecurity);
+      setSaving(true);
+      setStatusMessage(null);
+      setErrorMessage(null);
+
+      try {
+        const response = await fetch("/api/workspaces/current/security", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildPayload(nextSecurity)),
+        });
+
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+          security?: SecuritySettings;
+        } | null;
+
+        if (!response.ok || !data?.security) {
+          setSecurity(previousSecurity);
+          setErrorMessage(data?.error ?? "Unable to update security settings.");
+          return false;
+        }
+
+        setSecurity(data.security);
+        setStatusMessage(
+          options?.successMessage ?? "Security settings updated.",
+        );
+        return true;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [security],
+  );
+
+  const domainList = useMemo(
+    () => security?.approvedEmailDomains ?? [],
+    [security?.approvedEmailDomains],
+  );
+
+  const handleCopy = useCallback(async () => {
+    if (!security?.inviteUrl) {
+      return;
+    }
+
+    setErrorMessage(null);
+
+    try {
+      await copyText(security.inviteUrl);
+      setCopied(true);
+      setStatusMessage("Invite link copied.");
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setErrorMessage("Unable to copy the invite link.");
+    }
+  }, [security?.inviteUrl]);
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
+        Loading security settings...
+      </div>
+    );
+  }
+
+  if (!security) {
+    return (
+      <div className="max-w-[720px]">
+        <h1 className="mb-4 text-[20px] font-semibold text-[var(--color-text-primary)]">
+          Security
+        </h1>
+        <p className="text-[13px] text-[var(--color-text-secondary)]">
+          {errorMessage ?? "Unable to load security settings."}
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-[720px]">
-      <h1 className="mb-6 text-[20px] font-semibold text-[var(--color-text-primary)]">
-        Security
-      </h1>
+    <>
+      <div className="max-w-[720px]">
+        <h1 className="mb-6 text-[20px] font-semibold text-[var(--color-text-primary)]">
+          Security
+        </h1>
 
-      {/* ─── Workspace access ─────────────────────────────── */}
-      <SectionHeader>Workspace access</SectionHeader>
+        {statusMessage ? (
+          <div className="mb-4 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12px] text-[var(--color-text-secondary)]">
+            {statusMessage}
+          </div>
+        ) : null}
 
-      <div className="mb-6 rounded-lg border border-[var(--color-border)] p-4">
-        <div className="mb-1 text-[13px] font-medium text-[var(--color-text-primary)]">
-          Invite links
-        </div>
-        <p className="mb-4 text-[12px] text-[var(--color-text-tertiary)]">
-          A uniquely generated invite link allows anyone with the link to join
-          your workspace.
-        </p>
+        {errorMessage ? (
+          <div className="mb-4 rounded-md border border-[#4f1d1d] bg-[#2a1214] px-3 py-2 text-[12px] text-[#f1a3a8]">
+            {errorMessage}
+          </div>
+        ) : null}
 
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-[13px] text-[var(--color-text-primary)]">
-            Enable invite links
-          </span>
-          <Toggle
-            enabled={inviteLinksEnabled}
-            onChange={setInviteLinksEnabled}
-            label="Enable invite links"
-          />
-        </div>
+        <SectionHeader>Workspace access</SectionHeader>
 
-        {inviteLinksEnabled && (
-          <div className="flex items-center gap-2">
-            <div className="flex-1 truncate rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] text-[var(--color-text-tertiary)]">
-              {inviteUrl}
+        <div className="mb-6 rounded-lg border border-[var(--color-border)] p-4">
+          <div className="mb-1 text-[13px] font-medium text-[var(--color-text-primary)]">
+            Invite links
+          </div>
+          <p className="mb-4 text-[12px] text-[var(--color-text-tertiary)]">
+            A uniquely generated invite link allows anyone with the link to join
+            your workspace.
+          </p>
+
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <span className="text-[13px] text-[var(--color-text-primary)]">
+              Enable invite links
+            </span>
+            <Toggle
+              enabled={security.inviteLinkEnabled}
+              disabled={saving}
+              onChange={(value) =>
+                void persistSecurity(
+                  { ...security, inviteLinkEnabled: value },
+                  {
+                    successMessage: value
+                      ? "Invite links enabled."
+                      : "Invite links disabled.",
+                  },
+                )
+              }
+              label="Enable invite links"
+            />
+          </div>
+
+          {security.inviteLinkEnabled ? (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="flex-1 truncate rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12px] text-[var(--color-text-tertiary)]">
+                {security.inviteUrl}
+              </div>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void handleCopy()}
+                className="flex items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] px-3 py-2 text-[12px] text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                </svg>
+                {copied ? "Copied!" : "Copy"}
+              </button>
             </div>
+          ) : null}
+        </div>
+
+        <div className="mb-6">
+          <div className="mb-1 text-[13px] font-medium text-[var(--color-text-primary)]">
+            Workspace login and restrictions
+          </div>
+          <p className="mb-3 text-[12px] text-[var(--color-text-tertiary)]">
+            Anyone with an email address at these domains is allowed to sign up
+            for this workspace.{" "}
+            <a
+              href={INVITE_DOCS_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[var(--color-accent)] hover:underline"
+            >
+              Docs ↗
+            </a>
+          </p>
+          <div className="rounded-lg border border-[var(--color-border)] px-4 py-3">
+            {domainList.length > 0 ? (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {domainList.map((domain) => (
+                  <div
+                    key={domain}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[12px] text-[var(--color-text-secondary)]"
+                  >
+                    {domain}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${domain}`}
+                      disabled={saving}
+                      onClick={() =>
+                        void persistSecurity(
+                          {
+                            ...security,
+                            approvedEmailDomains:
+                              security.approvedEmailDomains.filter(
+                                (value) => value !== domain,
+                              ),
+                          },
+                          { successMessage: "Approved domain removed." },
+                        )
+                      }
+                      className="text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mb-3 text-[13px] text-[var(--color-text-tertiary)]">
+                No approved email domains
+              </div>
+            )}
+
             <button
               type="button"
-              onClick={handleCopy}
-              className="flex items-center gap-1.5 rounded-md border border-[var(--color-border)] px-3 py-1.5 text-[12px] text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+              disabled={saving}
+              onClick={() => {
+                setDomainDraft("");
+                setDomainDialogOpen(true);
+                setErrorMessage(null);
+              }}
+              className="flex items-center gap-1.5 text-[12px] text-[var(--color-accent)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
             >
               <svg
-                className="h-3.5 w-3.5"
+                className="h-3 w-3"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
                 aria-hidden="true"
               >
-                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                <path d="M12 5v14M5 12h14" />
               </svg>
-              {copied ? "Copied!" : "Copy"}
+              Add domain
             </button>
           </div>
-        )}
-      </div>
-
-      {/* ─── Workspace login and restrictions ─────────────── */}
-      <div className="mb-6">
-        <div className="mb-1 text-[13px] font-medium text-[var(--color-text-primary)]">
-          Workspace login and restrictions
         </div>
-        <p className="mb-3 text-[12px] text-[var(--color-text-tertiary)]">
-          Anyone with an email address at these domains is allowed to sign up
-          for this workspace.{" "}
-          <button
-            type="button"
-            className="text-[var(--color-accent)] hover:underline"
-          >
-            Docs ↗
-          </button>
+
+        <SectionHeader>Authentication methods</SectionHeader>
+
+        <p className="mb-4 text-[12px] text-[var(--color-text-tertiary)]">
+          Admins and guests can always authenticate via Google and
+          email/passkeys-even when disabled for members.
         </p>
-        <div className="flex items-center justify-between rounded-lg border border-[var(--color-border)] px-4 py-3">
-          <span className="text-[13px] text-[var(--color-text-tertiary)]">
-            No approved email domains
-          </span>
-          <button
-            type="button"
-            className="flex items-center gap-1.5 text-[12px] text-[var(--color-accent)] hover:underline"
-          >
-            <svg
-              className="h-3 w-3"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Add domain
-          </button>
-        </div>
-      </div>
 
-      {/* ─── Authentication methods ───────────────────────── */}
-      <SectionHeader>Authentication methods</SectionHeader>
-
-      <p className="mb-4 text-[12px] text-[var(--color-text-tertiary)]">
-        Admins and guests can always authenticate via Google and
-        email/passkeys—even when disabled for members.
-      </p>
-
-      <SettingRow
-        title="Google authentication"
-        description="When enabled, this is available to all workspace members and guests"
-      >
-        <Toggle
-          enabled={googleAuth}
-          onChange={setGoogleAuth}
-          label="Google authentication"
-        />
-      </SettingRow>
-
-      <SettingRow
-        title="Email & passkey authentication"
-        description="When enabled, this is available to all workspace members and guests"
-      >
-        <Toggle
-          enabled={emailPasskey}
-          onChange={setEmailPasskey}
-          label="Email & passkey authentication"
-        />
-      </SettingRow>
-
-      <div className="border-b border-[var(--color-border)] py-3">
-        <button
-          type="button"
-          className="text-[13px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+        <SettingRow
+          title="Google authentication"
+          description="When enabled, this is available to all workspace members and guests"
         >
-          SAML & SCIM →
-        </button>
-      </div>
+          <Toggle
+            enabled={security.authentication.google}
+            disabled={saving}
+            onChange={(value) =>
+              void persistSecurity(
+                {
+                  ...security,
+                  authentication: {
+                    ...security.authentication,
+                    google: value,
+                  },
+                },
+                {
+                  successMessage: value
+                    ? "Google authentication enabled."
+                    : "Google authentication disabled for members.",
+                },
+              )
+            }
+            label="Google authentication"
+          />
+        </SettingRow>
 
-      {/* ─── Workspace management ─────────────────────────── */}
-      <SectionHeader>Workspace management</SectionHeader>
+        <SettingRow
+          title="Email & passkey authentication"
+          description="When enabled, this is available to all workspace members and guests"
+        >
+          <Toggle
+            enabled={security.authentication.emailPasskey}
+            disabled={saving}
+            onChange={(value) =>
+              void persistSecurity(
+                {
+                  ...security,
+                  authentication: {
+                    ...security.authentication,
+                    emailPasskey: value,
+                  },
+                },
+                {
+                  successMessage: value
+                    ? "Email and passkey authentication enabled."
+                    : "Email and passkey authentication disabled for members.",
+                },
+              )
+            }
+            label="Email & passkey authentication"
+          />
+        </SettingRow>
 
-      <SettingRow title="New user invitations">
-        <PermissionSelect defaultValue="members" />
-      </SettingRow>
-      <SettingRow title="Team creation">
-        <PermissionSelect defaultValue="members" />
-      </SettingRow>
-      <SettingRow title="Manage workspace labels">
-        <PermissionSelect defaultValue="members" />
-      </SettingRow>
-      <SettingRow title="Manage workspace templates">
-        <PermissionSelect defaultValue="members" />
-      </SettingRow>
-      <SettingRow title="API key creation">
-        <PermissionSelect defaultValue="admins" />
-      </SettingRow>
-      <SettingRow title="Modify agent guidance">
-        <PermissionSelect defaultValue="admins" />
-      </SettingRow>
+        <div className="border-b border-[var(--color-border)] py-3">
+          <a
+            href={SAML_SCIM_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[13px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+          >
+            SAML & SCIM ↗
+          </a>
+        </div>
 
-      {/* ─── Restrict file uploads ────────────────────────── */}
-      <div className="mt-6">
+        <SectionHeader>Workspace management</SectionHeader>
+
+        {PERMISSION_ROWS.map((row) => (
+          <SettingRow key={row.key} title={row.title}>
+            <PermissionSelect
+              label={row.title}
+              disabled={saving}
+              value={security.permissions[row.key]}
+              onChange={(value) =>
+                void persistSecurity(
+                  {
+                    ...security,
+                    permissions: {
+                      ...security.permissions,
+                      [row.key]: value,
+                    },
+                  },
+                  { successMessage: `${row.title} updated.` },
+                )
+              }
+            />
+          </SettingRow>
+        ))}
+
         <SettingRow
           title="Restrict file uploads"
           description="When enabled, only admins can upload files"
         >
           <Toggle
-            enabled={restrictUploads}
-            onChange={setRestrictUploads}
+            enabled={security.restrictFileUploads}
+            disabled={saving}
+            onChange={(value) =>
+              void persistSecurity(
+                { ...security, restrictFileUploads: value },
+                {
+                  successMessage: value
+                    ? "File uploads restricted to admins."
+                    : "File uploads available to members again.",
+                },
+              )
+            }
             label="Restrict file uploads"
+          />
+        </SettingRow>
+
+        <SectionHeader>AI</SectionHeader>
+
+        <SettingRow
+          title="Improve AI"
+          description="Allow Linear to use workspace data to improve AI features"
+        >
+          <Toggle
+            enabled={security.improveAi}
+            disabled={saving}
+            onChange={(value) =>
+              void persistSecurity(
+                { ...security, improveAi: value },
+                {
+                  successMessage: value
+                    ? "Improve AI enabled."
+                    : "Improve AI disabled.",
+                },
+              )
+            }
+            label="Improve AI"
+          />
+        </SettingRow>
+
+        <SettingRow
+          title="Enable web search"
+          description="Allow AI to search the web for additional context"
+        >
+          <Toggle
+            enabled={security.webSearch}
+            disabled={saving}
+            onChange={(value) =>
+              void persistSecurity(
+                { ...security, webSearch: value },
+                {
+                  successMessage: value
+                    ? "Web search enabled."
+                    : "Web search disabled.",
+                },
+              )
+            }
+            label="Enable web search"
+          />
+        </SettingRow>
+
+        <SectionHeader>Compliance</SectionHeader>
+
+        <SettingRow
+          title="HIPAA compliance"
+          description="Enable HIPAA-compliant mode for protected health information"
+        >
+          <Toggle
+            enabled={security.hipaa}
+            disabled={saving}
+            onChange={(value) =>
+              void persistSecurity(
+                { ...security, hipaa: value },
+                {
+                  successMessage: value
+                    ? "HIPAA compliance enabled."
+                    : "HIPAA compliance disabled.",
+                },
+              )
+            }
+            label="HIPAA compliance"
           />
         </SettingRow>
       </div>
 
-      {/* ─── AI ───────────────────────────────────────────── */}
-      <SectionHeader>AI</SectionHeader>
+      {domainDialogOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-[420px] rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-5 shadow-2xl">
+            <h2 className="text-[16px] font-semibold text-[var(--color-text-primary)]">
+              Add approved domain
+            </h2>
+            <p className="mt-2 text-[12px] text-[var(--color-text-tertiary)]">
+              Anyone with this email domain can join the workspace without a
+              manual invite.
+            </p>
 
-      <SettingRow
-        title="Improve AI"
-        description="Allow Linear to use workspace data to improve AI features"
-      >
-        <Toggle
-          enabled={improveAi}
-          onChange={setImproveAi}
-          label="Improve AI"
-        />
-      </SettingRow>
-      <SettingRow
-        title="Enable web search"
-        description="Allow AI to search the web for additional context"
-      >
-        <Toggle
-          enabled={webSearch}
-          onChange={setWebSearch}
-          label="Enable web search"
-        />
-      </SettingRow>
+            <form
+              className="mt-4 space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const normalizedDomain = normalizeDomain(domainDraft);
 
-      {/* ─── Compliance ───────────────────────────────────── */}
-      <SectionHeader>Compliance</SectionHeader>
+                if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(normalizedDomain)) {
+                  setErrorMessage("Enter a valid email domain.");
+                  return;
+                }
 
-      <SettingRow
-        title="HIPAA compliance"
-        description="Enable HIPAA-compliant mode for protected health information"
-      >
-        <Toggle enabled={hipaa} onChange={setHipaa} label="HIPAA compliance" />
-      </SettingRow>
-    </div>
+                if (security.approvedEmailDomains.includes(normalizedDomain)) {
+                  setErrorMessage("That domain is already approved.");
+                  return;
+                }
+
+                void persistSecurity(
+                  {
+                    ...security,
+                    approvedEmailDomains: [
+                      ...security.approvedEmailDomains,
+                      normalizedDomain,
+                    ],
+                  },
+                  { successMessage: "Approved domain added." },
+                ).then((didSave) => {
+                  if (didSave) {
+                    setDomainDialogOpen(false);
+                    setDomainDraft("");
+                  }
+                });
+              }}
+            >
+              <label className="block text-[12px] text-[var(--color-text-secondary)]">
+                Domain
+                <input
+                  value={domainDraft}
+                  onChange={(event) => setDomainDraft(event.target.value)}
+                  placeholder="example.com"
+                  className="mt-1.5 w-full rounded-md border border-[var(--color-border)] bg-transparent px-3 py-2 text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
+                />
+              </label>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDomainDialogOpen(false);
+                    setDomainDraft("");
+                    setErrorMessage(null);
+                  }}
+                  className="rounded-md border border-[var(--color-border)] px-3 py-2 text-[12px] text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-md bg-[var(--color-accent)] px-3 py-2 text-[12px] font-medium text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Add domain
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

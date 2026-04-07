@@ -1,3 +1,4 @@
+import { autoJoinWorkspaceForApprovedDomain } from "@/lib/approved-domain-auto-join";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { member, team, workspace } from "@/lib/db/schema";
@@ -20,20 +21,31 @@ export default async function AppLayout({
   const cookieStore = await cookies();
   const preferredWorkspaceId = cookieStore.get("activeWorkspaceId")?.value;
 
-  const memberships = await db
-    .select({
-      workspaceId: member.workspaceId,
-      workspaceName: workspace.name,
-      workspaceSlug: workspace.urlSlug,
-    })
-    .from(member)
-    .innerJoin(workspace, eq(member.workspaceId, workspace.id))
-    .where(eq(member.userId, session.user.id))
-    .orderBy(desc(member.createdAt))
-    .limit(50);
+  const loadMemberships = () =>
+    db
+      .select({
+        workspaceId: member.workspaceId,
+        workspaceName: workspace.name,
+        workspaceSlug: workspace.urlSlug,
+      })
+      .from(member)
+      .innerJoin(workspace, eq(member.workspaceId, workspace.id))
+      .where(eq(member.userId, session.user.id))
+      .orderBy(desc(member.createdAt))
+      .limit(50);
+
+  let memberships = await loadMemberships();
 
   if (memberships.length === 0) {
-    redirect("/create-workspace");
+    await autoJoinWorkspaceForApprovedDomain({
+      userId: session.user.id,
+      email: session.user.email,
+    });
+    memberships = await loadMemberships();
+
+    if (memberships.length === 0) {
+      redirect("/create-workspace");
+    }
   }
 
   const ws =

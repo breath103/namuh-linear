@@ -1,121 +1,217 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import "@testing-library/jest-dom/vitest";
+import SecurityPage from "@/app/(app)/settings/security/page";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
-  usePathname: () => "/settings/security",
-}));
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
-describe("SecuritySettingsPage", () => {
+function buildSecurity(
+  overrides: Partial<ReturnType<typeof defaultSecurity>> = {},
+) {
+  return {
+    ...defaultSecurity(),
+    ...overrides,
+    authentication: {
+      ...defaultSecurity().authentication,
+      ...overrides.authentication,
+    },
+    permissions: {
+      ...defaultSecurity().permissions,
+      ...overrides.permissions,
+    },
+  };
+}
+
+type TestSecurity = {
+  inviteLinkEnabled: boolean;
+  inviteUrl: string;
+  approvedEmailDomains: string[];
+  authentication: {
+    google: boolean;
+    emailPasskey: boolean;
+  };
+  permissions: {
+    invitationsRole: "admins" | "members" | "anyone";
+    teamCreationRole: "admins" | "members" | "anyone";
+    labelManagementRole: "admins" | "members" | "anyone";
+    templateManagementRole: "admins" | "members" | "anyone";
+    apiKeyCreationRole: "admins" | "members" | "anyone";
+    agentGuidanceRole: "admins" | "members" | "anyone";
+  };
+  restrictFileUploads: boolean;
+  improveAi: boolean;
+  webSearch: boolean;
+  hipaa: boolean;
+};
+
+function defaultSecurity(): TestSecurity {
+  return {
+    inviteLinkEnabled: true,
+    inviteUrl: "http://localhost:3015/accept-invite?token=invite-token",
+    approvedEmailDomains: [] as string[],
+    authentication: {
+      google: true,
+      emailPasskey: true,
+    },
+    permissions: {
+      invitationsRole: "members" as const,
+      teamCreationRole: "members" as const,
+      labelManagementRole: "members" as const,
+      templateManagementRole: "members" as const,
+      apiKeyCreationRole: "admins" as const,
+      agentGuidanceRole: "admins" as const,
+    },
+    restrictFileUploads: false,
+    improveAi: true,
+    webSearch: true,
+    hipaa: false,
+  };
+}
+
+function mockSecurityLoad(
+  overrides: Partial<ReturnType<typeof defaultSecurity>> = {},
+) {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      security: buildSecurity(overrides),
+    }),
+  });
+}
+
+function mockPatchResponse(
+  overrides: Partial<ReturnType<typeof defaultSecurity>>,
+) {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      security: buildSecurity(overrides),
+    }),
+  });
+}
+
+function waitForLoaded() {
+  return waitFor(() => {
+    expect(
+      screen.queryByText("Loading security settings..."),
+    ).not.toBeInTheDocument();
+  });
+}
+
+describe("Security settings page", () => {
   afterEach(() => {
     cleanup();
-    vi.restoreAllMocks();
   });
 
-  async function renderPage() {
-    const { default: SecurityPage } = await import(
-      "@/app/(app)/settings/security/page"
-    );
-    render(<SecurityPage />);
-  }
-
-  it("renders page title 'Security'", async () => {
-    await renderPage();
-    expect(screen.getByText("Security")).toBeDefined();
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("renders 'Workspace access' section header", async () => {
-    await renderPage();
-    expect(screen.getByText("Workspace access")).toBeDefined();
-  });
-
-  it("renders invite links section with description", async () => {
-    await renderPage();
-    expect(screen.getByText("Invite links")).toBeDefined();
-    expect(screen.getByText(/uniquely generated invite link/i)).toBeDefined();
-  });
-
-  it("renders 'Enable invite links' toggle", async () => {
-    await renderPage();
-    expect(screen.getByText("Enable invite links")).toBeDefined();
-  });
-
-  it("renders invite URL with Copy button when enabled", async () => {
-    await renderPage();
-    expect(screen.getByText("Copy")).toBeDefined();
-  });
-
-  it("renders 'Workspace login and restrictions' section", async () => {
-    await renderPage();
-    expect(screen.getByText("Workspace login and restrictions")).toBeDefined();
-  });
-
-  it("renders approved email domains with 'Add domain' button", async () => {
-    await renderPage();
-    expect(screen.getByText(/approved email domains/i)).toBeDefined();
-    expect(screen.getByText("Add domain")).toBeDefined();
-  });
-
-  it("renders 'Authentication methods' section header", async () => {
-    await renderPage();
-    expect(screen.getByText("Authentication methods")).toBeDefined();
-  });
-
-  it("renders admin/guest note about authentication", async () => {
-    await renderPage();
-    expect(
-      screen.getByText(/admins and guests can always authenticate/i),
-    ).toBeDefined();
-  });
-
-  it("renders Google authentication toggle", async () => {
-    await renderPage();
-    expect(screen.getByText("Google authentication")).toBeDefined();
-  });
-
-  it("renders Email & passkey authentication toggle", async () => {
-    await renderPage();
-    expect(screen.getByText("Email & passkey authentication")).toBeDefined();
-  });
-
-  it("renders 'Workspace management' section", async () => {
-    await renderPage();
-    expect(screen.getByText("Workspace management")).toBeDefined();
-  });
-
-  it("renders permission selectors for workspace management", async () => {
-    await renderPage();
-    expect(screen.getByText("New user invitations")).toBeDefined();
-    expect(screen.getByText("Team creation")).toBeDefined();
-    expect(screen.getByText("Manage workspace labels")).toBeDefined();
-    expect(screen.getByText("API key creation")).toBeDefined();
-  });
-
-  it("renders AI section with toggles", async () => {
-    await renderPage();
-    expect(screen.getByText("AI")).toBeDefined();
-    expect(screen.getByText("Improve AI")).toBeDefined();
-    expect(screen.getByText("Enable web search")).toBeDefined();
-  });
-
-  it("renders Compliance section with HIPAA toggle", async () => {
-    await renderPage();
-    expect(screen.getByText("Compliance")).toBeDefined();
-    expect(screen.getByText("HIPAA compliance")).toBeDefined();
-  });
-
-  it("renders 'Restrict file uploads' toggle", async () => {
-    await renderPage();
-    expect(screen.getByText("Restrict file uploads")).toBeDefined();
-  });
-
-  it("toggles invite links on/off", async () => {
-    await renderPage();
-    const toggle = screen.getByRole("switch", {
-      name: /enable invite links/i,
+  it("renders persisted security settings from the API", async () => {
+    mockSecurityLoad({
+      approvedEmailDomains: ["acme.com"],
+      authentication: { google: false, emailPasskey: true },
     });
-    expect(toggle.getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(toggle);
-    expect(toggle.getAttribute("aria-checked")).toBe("false");
+
+    render(<SecurityPage />);
+    await waitForLoaded();
+
+    expect(
+      screen.getByRole("heading", { name: "Security" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("acme.com")).toBeInTheDocument();
+    expect(screen.getByText(defaultSecurity().inviteUrl)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "SAML & SCIM ↗" })).toHaveAttribute(
+      "href",
+      "https://linear.app/docs/saml-and-access-control",
+    );
+    expect(
+      screen.getByRole("switch", { name: "Google authentication" }),
+    ).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("persists invite link changes through the security API", async () => {
+    mockSecurityLoad();
+    mockPatchResponse({
+      inviteLinkEnabled: false,
+    });
+
+    render(<SecurityPage />);
+    await waitForLoaded();
+
+    fireEvent.click(
+      screen.getByRole("switch", { name: "Enable invite links" }),
+    );
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+
+    const request = mockFetch.mock.calls[1];
+    expect(request[0]).toBe("/api/workspaces/current/security");
+    expect(request[1]).toMatchObject({
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(JSON.parse(String(request[1]?.body))).toMatchObject({
+      inviteLinkEnabled: false,
+    });
+    expect(
+      screen.queryByText(defaultSecurity().inviteUrl),
+    ).not.toBeInTheDocument();
+  });
+
+  it("adds an approved email domain through the modal flow", async () => {
+    mockSecurityLoad();
+    mockPatchResponse({
+      approvedEmailDomains: ["example.com"],
+    });
+
+    render(<SecurityPage />);
+    await waitForLoaded();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add domain" }));
+    fireEvent.change(screen.getByLabelText("Domain"), {
+      target: { value: "Example.com" },
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Add domain" })[1]);
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+
+    const request = mockFetch.mock.calls[1];
+    expect(JSON.parse(String(request[1]?.body))).toMatchObject({
+      approvedEmailDomains: ["example.com"],
+    });
+    expect(screen.getByText("example.com")).toBeInTheDocument();
+  });
+
+  it("persists workspace management permission changes", async () => {
+    mockSecurityLoad();
+    mockPatchResponse({
+      permissions: {
+        ...defaultSecurity().permissions,
+        invitationsRole: "anyone",
+      },
+    });
+
+    render(<SecurityPage />);
+    await waitForLoaded();
+
+    fireEvent.change(screen.getByLabelText("New user invitations"), {
+      target: { value: "anyone" },
+    });
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    const request = mockFetch.mock.calls[1];
+    expect(JSON.parse(String(request[1]?.body))).toMatchObject({
+      permissions: expect.objectContaining({
+        invitationsRole: "anyone",
+      }),
+    });
   });
 });

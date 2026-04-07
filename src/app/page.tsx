@@ -1,4 +1,5 @@
 import { readAccountPreferencesFromUserSettings } from "@/lib/account-preferences";
+import { autoJoinWorkspaceForApprovedDomain } from "@/lib/approved-domain-auto-join";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { member, team, user, workspace } from "@/lib/db/schema";
@@ -14,18 +15,29 @@ export default async function Home() {
   }
 
   // Check if user has any workspaces
-  const memberships = await db
-    .select({
-      workspaceId: member.workspaceId,
-      workspaceSlug: workspace.urlSlug,
-    })
-    .from(member)
-    .innerJoin(workspace, eq(member.workspaceId, workspace.id))
-    .where(eq(member.userId, session.user.id))
-    .limit(1);
+  const loadMemberships = () =>
+    db
+      .select({
+        workspaceId: member.workspaceId,
+        workspaceSlug: workspace.urlSlug,
+      })
+      .from(member)
+      .innerJoin(workspace, eq(member.workspaceId, workspace.id))
+      .where(eq(member.userId, session.user.id))
+      .limit(1);
+
+  let memberships = await loadMemberships();
 
   if (memberships.length === 0) {
-    redirect("/create-workspace");
+    await autoJoinWorkspaceForApprovedDomain({
+      userId: session.user.id,
+      email: session.user.email,
+    });
+    memberships = await loadMemberships();
+
+    if (memberships.length === 0) {
+      redirect("/create-workspace");
+    }
   }
 
   // Get the first team in the workspace to redirect to
