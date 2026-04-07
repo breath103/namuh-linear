@@ -1082,3 +1082,17 @@ Date: 2026-04-07
 - src/app/(app)/settings/workspace/page.tsx — full workspace admin page
 - tests/settings-workspace.test.tsx — 7 tests
 - prd.json, qa-hints.json
+
+## Iteration 35 — settings-006: Members Admin Page
+Date: 2026-04-07
+
+### What was built
+- Members table with Name, Email, Status, Teams, Joined, Last seen columns
+- Export CSV and Invite buttons, All tab with active/pending counts
+- Owner role badge, active/pending status badges, empty state
+- 6 unit tests passing, typecheck clean, lint clean
+
+### Files changed
+- src/app/(app)/settings/members/page.tsx — full members admin page
+- tests/settings-members.test.tsx — 6 tests
+- prd.json, qa-hints.json

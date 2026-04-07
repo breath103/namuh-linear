@@ -655,5 +655,22 @@
       "Delete workspace confirmation and flow",
       "Region display from workspace creation"
     ]
+  },
+  {
+    "feature_id": "settings-006",
+    "tests_written": [
+      "Renders Members heading with Export CSV and Invite buttons",
+      "Renders table columns (Name, Status, Teams, Joined, Last seen)",
+      "Renders member rows with name, email, and role badge",
+      "Shows active and pending counts",
+      "Shows active/pending status badges",
+      "Shows empty state when no members"
+    ],
+    "needs_deeper_qa": [
+      "Invite flow modal and email sending",
+      "Export CSV functionality",
+      "Member role management",
+      "Real API data loading"
+    ]
   }
 ]
