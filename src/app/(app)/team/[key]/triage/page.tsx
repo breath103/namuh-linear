@@ -48,6 +48,21 @@ export default function TeamTriagePage() {
     fetchTriage();
   }, [fetchTriage]);
 
+  useEffect(() => {
+    function handleIssueCreated(event: Event) {
+      const detail = (event as CustomEvent<{ teamKey?: string }>).detail;
+      if (detail?.teamKey && detail.teamKey !== params.key) {
+        return;
+      }
+
+      void fetchTriage();
+    }
+
+    window.addEventListener("issue-created", handleIssueCreated);
+    return () =>
+      window.removeEventListener("issue-created", handleIssueCreated);
+  }, [fetchTriage, params.key]);
+
   const handleAccept = useCallback(
     async (issueId: string) => {
       const res = await fetch(`/api/teams/${params.key}/triage/${issueId}`, {

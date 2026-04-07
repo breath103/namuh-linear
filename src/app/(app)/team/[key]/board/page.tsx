@@ -137,6 +137,21 @@ export default function TeamBoardPage() {
     fetchIssues();
   }, [fetchIssues]);
 
+  useEffect(() => {
+    function handleIssueCreated(event: Event) {
+      const detail = (event as CustomEvent<{ teamKey?: string }>).detail;
+      if (detail?.teamKey && detail.teamKey !== params.key) {
+        return;
+      }
+
+      void fetchIssues();
+    }
+
+    window.addEventListener("issue-created", handleIssueCreated);
+    return () =>
+      window.removeEventListener("issue-created", handleIssueCreated);
+  }, [fetchIssues, params.key]);
+
   const handleLayoutChange = useCallback(
     (layout: "list" | "board") => {
       if (layout === "list") {

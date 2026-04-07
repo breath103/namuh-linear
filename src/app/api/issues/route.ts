@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { issue, team, workflowState } from "@/lib/db/schema";
+import { issue, issueLabel, team, workflowState } from "@/lib/db/schema";
+import { normalizeIssueDescriptionHtml } from "@/lib/issue-description";
 import { and, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -20,10 +21,13 @@ export async function POST(request: Request) {
     priority,
     assigneeId,
     projectId,
+    labelIds,
     parentIssueId,
   } = body;
 
-  if (!title || !teamId) {
+  const trimmedTitle = typeof title === "string" ? title.trim() : "";
+
+  if (!trimmedTitle || !teamId) {
     return NextResponse.json(
       { error: "Title and teamId are required" },
       { status: 400 },
@@ -76,22 +80,40 @@ export async function POST(request: Request) {
     );
   }
 
-  const newIssue = await db
-    .insert(issue)
-    .values({
-      number: nextNumber,
-      identifier,
-      title,
-      description: description || null,
-      teamId,
-      stateId: finalStateId,
-      creatorId: session.user.id,
-      priority: priority || "none",
-      assigneeId: assigneeId || null,
-      projectId: projectId || null,
-      parentIssueId: parentIssueId || null,
-    })
-    .returning();
+  const normalizedDescription = normalizeIssueDescriptionHtml(description);
+  const uniqueLabelIds = Array.isArray(labelIds)
+    ? [...new Set(labelIds.filter((value): value is string => Boolean(value)))]
+    : [];
 
-  return NextResponse.json(newIssue[0], { status: 201 });
+  const newIssue = await db.transaction(async (tx) => {
+    const [createdIssue] = await tx
+      .insert(issue)
+      .values({
+        number: nextNumber,
+        identifier,
+        title: trimmedTitle,
+        description: normalizedDescription,
+        teamId,
+        stateId: finalStateId,
+        creatorId: session.user.id,
+        priority: priority || "none",
+        assigneeId: assigneeId || null,
+        projectId: projectId || null,
+        parentIssueId: parentIssueId || null,
+      })
+      .returning();
+
+    if (uniqueLabelIds.length > 0) {
+      await tx.insert(issueLabel).values(
+        uniqueLabelIds.map((labelId) => ({
+          issueId: createdIssue.id,
+          labelId,
+        })),
+      );
+    }
+
+    return createdIssue;
+  });
+
+  return NextResponse.json(newIssue, { status: 201 });
 }

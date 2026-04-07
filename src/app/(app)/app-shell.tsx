@@ -39,6 +39,20 @@ function getActiveTeamKey(pathname: string): string | null {
   return null;
 }
 
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+  return (
+    target.isContentEditable ||
+    tagName === "input" ||
+    tagName === "textarea" ||
+    tagName === "select"
+  );
+}
+
 export function AppShell({
   children,
   workspaceName,
@@ -114,6 +128,36 @@ export function AppShell({
     workspaceInitials,
     workspaceName,
   ]);
+
+  useEffect(() => {
+    function handleOpenCreateIssue() {
+      setShowCreateIssue(true);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        event.key.toLowerCase() !== "c" ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey ||
+        isTypingTarget(event.target)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      setShowCreateIssue(true);
+    }
+
+    window.addEventListener("open-create-issue", handleOpenCreateIssue);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("open-create-issue", handleOpenCreateIssue);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   return (
     <div className="flex h-screen bg-[var(--color-sidebar-bg)]">

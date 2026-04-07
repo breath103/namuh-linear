@@ -6,6 +6,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import InboxPage from "@/app/(app)/inbox/page";
@@ -23,6 +24,27 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({ key: "ENG" }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
+
+const createIssueOptionsResponse = {
+  team: { id: "team-1", name: "Engineering", key: "ENG" },
+  statuses: [
+    {
+      id: "state-1",
+      name: "Backlog",
+      category: "backlog",
+      color: "#6b6f76",
+    },
+  ],
+  priorities: [{ value: "none", label: "No priority" }],
+  assignees: [],
+  labels: [],
+  projects: [],
+};
+
+function setEditableValue(element: HTMLElement, value: string) {
+  element.textContent = value;
+  fireEvent.input(element);
+}
 
 describe("EmptyState component", () => {
   afterEach(() => {
@@ -82,14 +104,24 @@ describe("Empty state pages", () => {
   });
 
   it("Team Issues page shows 'No issues' with create CTA", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          team: { id: "1", name: "Engineering", key: "ENG" },
-          groups: [],
-        }),
-    });
+    global.fetch = vi.fn((input) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/create-issue-options")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(createIssueOptionsResponse),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            team: { id: "1", name: "Engineering", key: "ENG" },
+            groups: [],
+          }),
+      });
+    }) as unknown as typeof fetch;
     render(<TeamIssuesPage />);
     expect(
       await screen.findByText("No issues", {}, { timeout: 2000 }),
@@ -97,13 +129,19 @@ describe("Empty state pages", () => {
     expect(screen.getByText("Create issue")).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "Create issue" }));
     expect(await screen.findByText("New issue")).toBeDefined();
-    expect(screen.getByPlaceholderText("Issue title")).toBeDefined();
+    expect(screen.getByRole("textbox", { name: "Issue title" })).toBeDefined();
   });
 
   it("Team Issues page recovers from empty state after creating the first issue", async () => {
     let issueCreated = false;
     global.fetch = vi.fn((input, init) => {
       const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/create-issue-options")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(createIssueOptionsResponse),
+        });
+      }
       if (url === "/api/issues" && init?.method === "POST") {
         issueCreated = true;
         return Promise.resolve({
@@ -162,8 +200,14 @@ describe("Empty state pages", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Create issue" }),
     );
-    fireEvent.change(screen.getByPlaceholderText("Issue title"), {
-      target: { value: "First issue" },
+    setEditableValue(
+      screen.getByRole("textbox", { name: "Issue title" }),
+      "First issue",
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Create Issue" }),
+      ).not.toBeDisabled();
     });
     fireEvent.click(screen.getByRole("button", { name: "Create Issue" }));
 
@@ -228,48 +272,58 @@ describe("Empty state pages", () => {
   });
 
   it("Team Issues page opens the create modal from a group header add button", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          team: { id: "team-1", name: "Engineering", key: "ENG" },
-          groups: [
-            {
-              state: {
-                id: "state-1",
-                name: "Backlog",
-                category: "backlog",
-                color: "#6b6f76",
-                position: 1,
-              },
-              issues: [
-                {
-                  id: "issue-1",
-                  number: 1,
-                  identifier: "ENG-1",
-                  title: "First issue",
-                  priority: "none",
-                  stateId: "state-1",
-                  assigneeId: null,
-                  assignee: null,
-                  labels: [],
-                  labelIds: [],
-                  projectId: null,
-                  projectName: null,
-                  dueDate: null,
-                  createdAt: "2026-04-07T00:00:00.000Z",
+    global.fetch = vi.fn((input) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/create-issue-options")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(createIssueOptionsResponse),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            team: { id: "team-1", name: "Engineering", key: "ENG" },
+            groups: [
+              {
+                state: {
+                  id: "state-1",
+                  name: "Backlog",
+                  category: "backlog",
+                  color: "#6b6f76",
+                  position: 1,
                 },
-              ],
+                issues: [
+                  {
+                    id: "issue-1",
+                    number: 1,
+                    identifier: "ENG-1",
+                    title: "First issue",
+                    priority: "none",
+                    stateId: "state-1",
+                    assigneeId: null,
+                    assignee: null,
+                    labels: [],
+                    labelIds: [],
+                    projectId: null,
+                    projectName: null,
+                    dueDate: null,
+                    createdAt: "2026-04-07T00:00:00.000Z",
+                  },
+                ],
+              },
+            ],
+            filterOptions: {
+              statuses: [],
+              assignees: [],
+              labels: [],
+              priorities: [],
             },
-          ],
-          filterOptions: {
-            statuses: [],
-            assignees: [],
-            labels: [],
-            priorities: [],
-          },
-        }),
-    });
+          }),
+      });
+    }) as unknown as typeof fetch;
 
     render(<TeamIssuesPage />);
 
@@ -279,18 +333,30 @@ describe("Empty state pages", () => {
       name: /create issue for engineering/i,
     });
     expect(within(dialog).getByText("Backlog")).toBeDefined();
-    expect(within(dialog).getByPlaceholderText("Issue title")).toBeDefined();
+    expect(
+      within(dialog).getByRole("textbox", { name: "Issue title" }),
+    ).toBeDefined();
   });
 
   it("Team Board page shows 'No issues' with create CTA", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          team: { id: "1", name: "Engineering", key: "ENG" },
-          groups: [],
-        }),
-    });
+    global.fetch = vi.fn((input) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/create-issue-options")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(createIssueOptionsResponse),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            team: { id: "1", name: "Engineering", key: "ENG" },
+            groups: [],
+          }),
+      });
+    }) as unknown as typeof fetch;
     render(<TeamBoardPage />);
     expect(
       await screen.findByText("No issues", {}, { timeout: 2000 }),
@@ -298,13 +364,19 @@ describe("Empty state pages", () => {
     expect(screen.getByText("Create issue")).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "Create issue" }));
     expect(await screen.findByText("New issue")).toBeDefined();
-    expect(screen.getByPlaceholderText("Issue title")).toBeDefined();
+    expect(screen.getByRole("textbox", { name: "Issue title" })).toBeDefined();
   });
 
   it("Team Board page recovers from empty state after creating the first issue", async () => {
     let issueCreated = false;
     global.fetch = vi.fn((input, init) => {
       const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/create-issue-options")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(createIssueOptionsResponse),
+        });
+      }
       if (url === "/api/issues" && init?.method === "POST") {
         issueCreated = true;
         return Promise.resolve({
@@ -360,8 +432,14 @@ describe("Empty state pages", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Create issue" }),
     );
-    fireEvent.change(screen.getByPlaceholderText("Issue title"), {
-      target: { value: "First board issue" },
+    setEditableValue(
+      screen.getByRole("textbox", { name: "Issue title" }),
+      "First board issue",
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Create Issue" }),
+      ).not.toBeDisabled();
     });
     fireEvent.click(screen.getByRole("button", { name: "Create Issue" }));
 
@@ -387,14 +465,24 @@ describe("Empty state pages", () => {
   });
 
   it("Team Triage page shows 'No issues to triage'", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          team: { id: "1", name: "Engineering", key: "ENG" },
-          issues: [],
-          count: 0,
-        }),
+    global.fetch = vi.fn((input) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/create-issue-options")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(createIssueOptionsResponse),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            team: { id: "1", name: "Engineering", key: "ENG" },
+            issues: [],
+            count: 0,
+          }),
+      });
     }) as unknown as typeof fetch;
     render(<TeamTriagePage />);
     expect(
@@ -405,7 +493,7 @@ describe("Empty state pages", () => {
       screen.getByRole("button", { name: "Create triage issue" }),
     );
     expect(await screen.findByText("New issue")).toBeDefined();
-    expect(screen.getByPlaceholderText("Issue title")).toBeDefined();
+    expect(screen.getByRole("textbox", { name: "Issue title" })).toBeDefined();
   });
 
   it("Projects page shows 'No projects' with create CTA", async () => {

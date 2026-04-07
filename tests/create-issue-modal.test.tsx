@@ -1,10 +1,13 @@
 import { CreateIssueModal } from "@/components/create-issue-modal";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-afterEach(() => {
-  cleanup();
-});
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const defaultProps = {
   open: true,
@@ -15,10 +18,79 @@ const defaultProps = {
   defaultStateId: "state-1",
 };
 
+const optionsResponse = {
+  team: { id: "team-1", name: "Engineering", key: "ENG" },
+  statuses: [
+    {
+      id: "state-1",
+      name: "Backlog",
+      category: "backlog",
+      color: "#6b6f76",
+    },
+    {
+      id: "state-2",
+      name: "In Progress",
+      category: "started",
+      color: "#f59e0b",
+    },
+  ],
+  priorities: [
+    { value: "none", label: "No priority" },
+    { value: "high", label: "High" },
+  ],
+  assignees: [{ id: "user-1", name: "Jaeyun Ha", image: null }],
+  labels: [{ id: "label-1", name: "Bug", color: "#ef4444" }],
+  projects: [{ id: "project-1", name: "Roadmap", icon: "R" }],
+};
+
+function mockJsonResponse(payload: unknown, ok = true, status = 200): Response {
+  return {
+    ok,
+    status,
+    json: async () => payload,
+  } as Response;
+}
+
+function setEditableValue(element: HTMLElement, value: string) {
+  element.textContent = value;
+  fireEvent.input(element);
+}
+
 describe("CreateIssueModal", () => {
-  it("renders modal when open", () => {
+  beforeEach(() => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+
+      if (url.includes("/create-issue-options")) {
+        return mockJsonResponse(optionsResponse);
+      }
+
+      if (url === "/api/issues" && init?.method === "POST") {
+        return mockJsonResponse({ id: "issue-1" }, true, 201);
+      }
+
+      if (url === "/api/issues/issue-1/comments" && init?.method === "POST") {
+        return mockJsonResponse({ id: "comment-1" }, true, 201);
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it("renders modal when open", async () => {
     render(<CreateIssueModal {...defaultProps} />);
-    expect(screen.getByText("New issue")).toBeDefined();
+
+    expect(screen.getByText("New issue")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Assignee" }),
+      ).toBeInTheDocument();
+    });
   });
 
   it("does not render when closed", () => {
@@ -26,64 +98,123 @@ describe("CreateIssueModal", () => {
     expect(screen.queryByText("New issue")).toBeNull();
   });
 
-  it("renders team identifier", () => {
+  it("renders rich text title and description editors", async () => {
     render(<CreateIssueModal {...defaultProps} />);
-    expect(screen.getByText("ENG")).toBeDefined();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("textbox", { name: "Issue title" }),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByRole("textbox", { name: "Issue description" }),
+    ).toBeInTheDocument();
   });
 
-  it("renders title input", () => {
+  it("renders toolbar buttons for status, priority, assignee, project, and labels", async () => {
     render(<CreateIssueModal {...defaultProps} />);
-    const input = screen.getByPlaceholderText("Issue title");
-    expect(input).toBeDefined();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Status" }),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Priority" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Assignee" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Labels" })).toBeInTheDocument();
   });
 
-  it("renders description input", () => {
-    render(<CreateIssueModal {...defaultProps} />);
-    const textarea = screen.getByPlaceholderText("Add description...");
-    expect(textarea).toBeDefined();
-  });
-
-  it("renders Create Issue button", () => {
-    render(<CreateIssueModal {...defaultProps} />);
-    expect(screen.getByText("Create Issue")).toBeDefined();
-  });
-
-  it("renders toolbar buttons (Status, Priority, Labels)", () => {
-    render(<CreateIssueModal {...defaultProps} />);
-    expect(screen.getByText("Backlog")).toBeDefined();
-    expect(screen.getByText("Priority")).toBeDefined();
-    expect(screen.getByText("Labels")).toBeDefined();
-  });
-
-  it("renders close button", () => {
-    render(<CreateIssueModal {...defaultProps} />);
-    const closeBtn = screen.getByRole("button", { name: /close/i });
-    expect(closeBtn).toBeDefined();
-  });
-
-  it("calls onClose when close button clicked", () => {
+  it("calls onClose when close button clicked", async () => {
     const onClose = vi.fn();
     render(<CreateIssueModal {...defaultProps} onClose={onClose} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /close/i }),
+      ).toBeInTheDocument();
+    });
+
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("disables submit when title is empty", () => {
+  it("disables submit when title is empty", async () => {
     render(<CreateIssueModal {...defaultProps} />);
-    const btn = screen.getByText("Create Issue");
-    expect(btn.closest("button")?.disabled).toBe(true);
+
+    await waitFor(() => {
+      expect(screen.getByText("Create Issue")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Create Issue").closest("button")).toBeDisabled();
   });
 
-  it("enables submit when title is entered", () => {
+  it("enables submit when title is entered", async () => {
     render(<CreateIssueModal {...defaultProps} />);
-    const input = screen.getByPlaceholderText("Issue title");
-    fireEvent.change(input, { target: { value: "Fix bug" } });
-    const btn = screen.getByText("Create Issue");
-    expect(btn.closest("button")?.disabled).toBe(false);
+
+    const titleBox = await screen.findByRole("textbox", {
+      name: "Issue title",
+    });
+    setEditableValue(titleBox, "Fix bug");
+
+    expect(
+      screen.getByText("Create Issue").closest("button"),
+    ).not.toBeDisabled();
   });
 
-  it("renders Create more toggle", () => {
-    render(<CreateIssueModal {...defaultProps} />);
-    expect(screen.getByText("Create more")).toBeDefined();
+  it("creates an issue with selected assignee, project, labels, and create more", async () => {
+    const onCreated = vi.fn();
+    render(<CreateIssueModal {...defaultProps} onCreated={onCreated} />);
+
+    const titleBox = await screen.findByRole("textbox", {
+      name: "Issue title",
+    });
+    const descriptionBox = screen.getByRole("textbox", {
+      name: "Issue description",
+    });
+    setEditableValue(titleBox, "QA modal issue");
+    setEditableValue(descriptionBox, "Details");
+
+    fireEvent.click(screen.getByRole("button", { name: "Assignee" }));
+    fireEvent.click(await screen.findByText("Jaeyun Ha"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Project" }));
+    fireEvent.click(await screen.findByText("Roadmap"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Labels" }));
+    fireEvent.click(await screen.findByText("Bug"));
+
+    fireEvent.click(screen.getByLabelText("Attach files"));
+    const fileInput = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    const file = new File(["hello"], "notes.txt", { type: "text/plain" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    fireEvent.click(screen.getByLabelText("Create more"));
+    fireEvent.click(screen.getByText("Create Issue"));
+
+    await waitFor(() => {
+      expect(onCreated).toHaveBeenCalledTimes(1);
+    });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/api/issues",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining('"title":"QA modal issue"'),
+      }),
+    );
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/api/issues/issue-1/comments",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(titleBox.textContent).toBe("");
   });
 });

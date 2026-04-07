@@ -669,5 +669,51 @@
     ],
     "bugs_found": [],
     "fix_description": "Implemented real comment-attachment persistence with the new `comment_attachment` table plus S3 uploads/download URLs, upgraded the description field to a toolbar-backed rich-text HTML editor, tightened the detail-page layout/action chrome toward the Linear reference, and verified title edits, rich-text persistence, attachments, reactions, and sub-issues end to end."
+  },
+  {
+    "feature_id": "feature-004",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 593 unit tests passed after the create-issue modal fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the app still loaded successfully on `http://localhost:3015`.",
+      "Ran `make check && make test`; typecheck, Biome, and the full Vitest suite all passed after the modal/API changes.",
+      "Ran full `make test-e2e` because the fix touched shared UI surfaces; smoke still passed and the only failing specs were the pre-existing unrelated `tests/e2e/command-palette.spec.ts` cases where the command palette never opens on `Meta+K`.",
+      "Opened the live authenticated clone on `/team/ONB/all` in Ever, verified the global `C` shortcut path opens the modal, and confirmed the modal now renders contenteditable title/description editors plus interactive Status, Priority, Assignee, Project, Labels, attachment, and Create more controls; saved a screenshot to `ralph/screenshots/qa/feature-004-attempt-1-modal-and-created-issues.jpg`.",
+      "Used the live modal to create `ONB-4 QA feature 004 browser verification` with Status `In Progress`, Priority `High`, and rich HTML description content; verified the new issue appeared immediately in the In Progress group on `/team/ONB/all`.",
+      "Enabled `Create more`, created `ONB-5 QA feature 004 create more`, and verified the modal stayed open, the editor contents cleared, and the backlog list refreshed live with the new issue.",
+      "Injected a real browser `File` into the modal file input, created `ONB-6 QA feature 004 js attachment`, and verified via `GET /api/issues/28105530-ce2f-487a-ab64-2c27e2aee858` that the issue persisted an attachment named `modal.txt` in its activity feed comment metadata."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "The create-issue modal toolbar controls were mostly non-functional placeholders.",
+        "expected": "Status, Priority, Assignee, Project, and Labels should all be interactive selectors as described in the PRD and Linear reference.",
+        "actual": "Before the fix, only static buttons rendered for the toolbar, with no dropdown behavior for status/priority and no assignee/project implementation at all.",
+        "reproduction": "1. Open the create-issue modal.\n2. Click the toolbar controls for Status, Priority, Assignee, Project, or Labels.\n3. Observe that the pre-fix modal exposed no working selection UI for most controls."
+      },
+      {
+        "severity": "major",
+        "description": "The modal title and description inputs did not match the richer editor behavior in the spec.",
+        "expected": "The title should be a contenteditable field and the description should support rich-text HTML content.",
+        "actual": "Before the fix, the modal used a plain text `<input>` for the title and a plain `<textarea>` for the description.",
+        "reproduction": "1. Open the create-issue modal.\n2. Inspect the title and description inputs.\n3. Observe that the pre-fix UI only offered plain text fields instead of contenteditable/rich-text surfaces."
+      },
+      {
+        "severity": "major",
+        "description": "The global create-issue entry points did not work correctly.",
+        "expected": "Pressing `C` or triggering the command-palette create action should open the create-issue modal and successful creation should refresh active issue views.",
+        "actual": "Before the fix, there was no listener for the `open-create-issue` event, the `C` shortcut did nothing, and sidebar/global creations did not notify issue views to refresh.",
+        "reproduction": "1. Open an app page such as `/team/ONB/all`.\n2. Press `C` or trigger the command-palette create-issue command.\n3. Observe that the pre-fix modal does not open and global creations do not refresh the current issue list."
+      },
+      {
+        "severity": "major",
+        "description": "The modal had no working attachment flow and `Create more` behavior was incomplete.",
+        "expected": "Users should be able to attach a file during creation, and when `Create more` is enabled the modal should stay open while clearing the form for the next issue.",
+        "actual": "Before the fix, there was no attachment plumbing from the modal to persisted issue data, and the post-create reset behavior did not preserve the expected create-more workflow.",
+        "reproduction": "1. Open the create-issue modal.\n2. Try to attach a file and create an issue.\n3. Enable `Create more` and create another issue.\n4. Observe that the pre-fix modal had no persisted attachment path and did not support the expected create-more loop."
+      }
+    ],
+    "fix_description": "Rebuilt the create-issue modal around contenteditable editors plus real toolbar menus, added a team-scoped create-issue options API, extended issue creation to persist labels and normalized rich descriptions, wired global `C`/command-palette opening plus live issue-list refresh events, and implemented attachment persistence by posting uploaded files to the issue comment attachment route after creation."
   }
 ]

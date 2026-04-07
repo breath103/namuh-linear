@@ -39,6 +39,22 @@ vi.mock("next/link", () => ({
 import { AppShell } from "@/app/(app)/app-shell";
 import { Sidebar } from "@/components/sidebar";
 
+const createIssueOptionsResponse = {
+  team: { id: "team-1", name: "Eng", key: "ENG" },
+  statuses: [
+    {
+      id: "state-1",
+      name: "Backlog",
+      category: "backlog",
+      color: "#6b6f76",
+    },
+  ],
+  priorities: [{ value: "none", label: "No priority" }],
+  assignees: [],
+  labels: [],
+  projects: [],
+};
+
 describe("Sidebar", () => {
   afterEach(() => {
     cleanup();
@@ -318,6 +334,72 @@ describe("AppShell", () => {
       expect(
         screen.getAllByText("QA Fix 20260407 1644").length,
       ).toBeGreaterThan(0);
+    });
+  });
+
+  it("opens the global create issue modal on the C shortcut", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/create-issue-options")) {
+        return {
+          ok: true,
+          json: async () => createIssueOptionsResponse,
+        } as Response;
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
+    render(
+      <AppShell
+        workspaceName="WS"
+        workspaceInitials="WS"
+        teamName="Eng"
+        teamId="team-1"
+        teamKey="ENG"
+        teams={[{ id: "team-1", name: "Eng", key: "ENG" }]}
+      >
+        <div>Content</div>
+      </AppShell>,
+    );
+
+    fireEvent.keyDown(document, { key: "c" });
+
+    await waitFor(() => {
+      expect(screen.getByText("New issue")).toBeInTheDocument();
+    });
+  });
+
+  it("opens the global create issue modal when the command event fires", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/create-issue-options")) {
+        return {
+          ok: true,
+          json: async () => createIssueOptionsResponse,
+        } as Response;
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
+    render(
+      <AppShell
+        workspaceName="WS"
+        workspaceInitials="WS"
+        teamName="Eng"
+        teamId="team-1"
+        teamKey="ENG"
+        teams={[{ id: "team-1", name: "Eng", key: "ENG" }]}
+      >
+        <div>Content</div>
+      </AppShell>,
+    );
+
+    window.dispatchEvent(new CustomEvent("open-create-issue"));
+
+    await waitFor(() => {
+      expect(screen.getByText("New issue")).toBeInTheDocument();
     });
   });
 });
