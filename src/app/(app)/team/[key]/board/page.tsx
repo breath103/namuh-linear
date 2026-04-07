@@ -1,11 +1,16 @@
 "use client";
 
 import { BoardColumn } from "@/components/board-column";
+import {
+  DisplayOptionsPanel,
+  type DisplayProperties,
+} from "@/components/display-options-panel";
 import { EmptyState } from "@/components/empty-state";
 import { IssueCard } from "@/components/issue-card";
 import { priorityMap } from "@/components/issue-row";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useDisplayOptions } from "@/hooks/use-display-options";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 interface IssueData {
   id: string;
@@ -42,8 +47,15 @@ type StatusCategory =
 
 export default function TeamBoardPage() {
   const params = useParams<{ key: string }>();
+  const router = useRouter();
   const [data, setData] = useState<IssuesResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDisplayOptions, setShowDisplayOptions] = useState(false);
+
+  const { options, updateOptions, saveAsDefault, reset } = useDisplayOptions(
+    params.key,
+    "board",
+  );
 
   useEffect(() => {
     async function fetchIssues() {
@@ -59,6 +71,28 @@ export default function TeamBoardPage() {
     }
     fetchIssues();
   }, [params.key]);
+
+  const handleLayoutChange = useCallback(
+    (layout: "list" | "board") => {
+      if (layout === "list") {
+        router.push(`/team/${params.key}/all`);
+      }
+      updateOptions({ layout });
+    },
+    [router, params.key, updateOptions],
+  );
+
+  const handlePropertyToggle = useCallback(
+    (key: keyof DisplayProperties) => {
+      updateOptions({
+        displayProperties: {
+          ...options.displayProperties,
+          [key]: !options.displayProperties[key],
+        },
+      });
+    },
+    [options.displayProperties, updateOptions],
+  );
 
   if (loading) {
     return (
@@ -98,10 +132,11 @@ export default function TeamBoardPage() {
     );
   }
 
-  // Filter out empty columns for completed/canceled by default
+  // Filter out empty columns for completed/canceled unless showEmptyColumns is on
   const visibleGroups = data.groups.filter(
     (g) =>
       g.issues.length > 0 ||
+      options.showEmptyColumns ||
       (g.state.category !== "completed" && g.state.category !== "canceled"),
   );
 
@@ -113,9 +148,62 @@ export default function TeamBoardPage() {
           {data.team.name}
         </h1>
         <div className="flex-1" />
-        <span className="text-[12px] text-[var(--color-text-secondary)]">
+        <span className="mr-2 text-[12px] text-[var(--color-text-secondary)]">
           {totalIssues} issues
         </span>
+        {/* Display options trigger */}
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="Display options"
+            onClick={() => setShowDisplayOptions(!showDisplayOptions)}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            Display
+          </button>
+          <DisplayOptionsPanel
+            open={showDisplayOptions}
+            onClose={() => setShowDisplayOptions(false)}
+            layout={options.layout}
+            onLayoutChange={handleLayoutChange}
+            groupBy={options.groupBy}
+            onGroupByChange={(g) => updateOptions({ groupBy: g })}
+            subGroupBy={options.subGroupBy}
+            onSubGroupByChange={(s) => updateOptions({ subGroupBy: s })}
+            orderBy={options.orderBy}
+            onOrderByChange={(o) => updateOptions({ orderBy: o })}
+            displayProperties={options.displayProperties}
+            onDisplayPropertyToggle={handlePropertyToggle}
+            showSubIssues={options.showSubIssues}
+            onShowSubIssuesToggle={() =>
+              updateOptions({ showSubIssues: !options.showSubIssues })
+            }
+            showTriageIssues={options.showTriageIssues}
+            onShowTriageIssuesToggle={() =>
+              updateOptions({ showTriageIssues: !options.showTriageIssues })
+            }
+            showEmptyColumns={options.showEmptyColumns}
+            onShowEmptyColumnsToggle={() =>
+              updateOptions({ showEmptyColumns: !options.showEmptyColumns })
+            }
+            onReset={reset}
+            onSaveAsDefault={saveAsDefault}
+          />
+        </div>
       </div>
 
       {/* Board */}

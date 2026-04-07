@@ -266,5 +266,34 @@
       "File attachments — not yet implemented",
       "Visual comparison with Linear's actual issue detail layout"
     ]
+  },
+  {
+    "feature_id": "feature-005",
+    "tests_written": [
+      "Panel renders when open, hidden when closed",
+      "List and Board layout tabs render and highlight active",
+      "onLayoutChange called when switching layout",
+      "Grouping selector shows current value and calls onGroupByChange",
+      "Sub-group selector renders and calls onSubGroupByChange",
+      "Ordering selector shows current value and calls onOrderByChange",
+      "All 13 display property chips render",
+      "onDisplayPropertyToggle called when clicking a property",
+      "Show sub-issues toggle renders",
+      "Show triage issues toggle renders",
+      "Board options section with Show empty columns renders",
+      "Reset button calls onReset",
+      "Set default button calls onSaveAsDefault",
+      "defaultDisplayProperties has correct enabled/disabled defaults"
+    ],
+    "needs_deeper_qa": [
+      "E2E: open display options panel, toggle layout, verify navigation",
+      "E2E: toggle display properties and verify issue rows update",
+      "Save as team default persists to database via PUT API",
+      "Display options load from API on page mount",
+      "Reset restores all options to defaults",
+      "Visual comparison with Linear's actual display options panel",
+      "Panel dismiss on outside click",
+      "Multiple dropdown selectors don't interfere with each other"
+    ]
   }
 ]

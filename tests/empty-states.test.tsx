@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/empty-state";
 vi.mock("next/navigation", () => ({
   usePathname: () => "/team/ENG/all",
   useParams: () => ({ key: "ENG" }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
 describe("EmptyState component", () => {

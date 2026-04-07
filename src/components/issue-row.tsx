@@ -1,4 +1,5 @@
 import { Avatar } from "@/components/avatar";
+import type { DisplayProperties } from "@/components/display-options-panel";
 import { PriorityIcon } from "@/components/icons/priority-icon";
 import { StatusIcon } from "@/components/icons/status-icon";
 import { LabelChip } from "@/components/label-chip";
@@ -22,6 +23,7 @@ interface IssueRowProps {
   labels?: { name: string; color: string }[];
   createdAt: string;
   href?: string;
+  displayProperties?: DisplayProperties;
 }
 
 const priorityMap: Record<string, 0 | 1 | 2 | 3 | 4> = {
@@ -64,22 +66,30 @@ export function IssueRow({
   labels,
   createdAt,
   href,
+  displayProperties,
 }: IssueRowProps) {
+  const showProp = (key: keyof DisplayProperties) =>
+    !displayProperties || displayProperties[key];
+
   return (
     <div
       data-testid="issue-row"
       className="group flex h-[40px] items-center gap-2 border-b border-[var(--color-border)] px-4 text-[13px] transition-colors hover:bg-[var(--color-surface-hover)]"
     >
       {/* Priority */}
-      <PriorityIcon priority={priority} size={14} />
+      {showProp("priority") && <PriorityIcon priority={priority} size={14} />}
 
       {/* Status */}
-      <StatusIcon category={statusCategory} color={statusColor} size={14} />
+      {showProp("status") && (
+        <StatusIcon category={statusCategory} color={statusColor} size={14} />
+      )}
 
       {/* Identifier */}
-      <span className="shrink-0 text-[var(--color-text-secondary)]">
-        {identifier}
-      </span>
+      {showProp("id") && (
+        <span className="shrink-0 text-[var(--color-text-secondary)]">
+          {identifier}
+        </span>
+      )}
 
       {/* Title */}
       <span className="min-w-0 flex-1 truncate text-[var(--color-text-primary)]">
@@ -87,7 +97,7 @@ export function IssueRow({
       </span>
 
       {/* Labels */}
-      {labels && labels.length > 0 && (
+      {showProp("labels") && labels && labels.length > 0 && (
         <div className="flex shrink-0 items-center gap-1">
           {labels.map((l) => (
             <LabelChip key={l.name} name={l.name} color={l.color} />
@@ -96,18 +106,21 @@ export function IssueRow({
       )}
 
       {/* Date */}
-      <span className="shrink-0 text-[12px] text-[var(--color-text-secondary)]">
-        {formatDate(createdAt)}
-      </span>
+      {showProp("created") && (
+        <span className="shrink-0 text-[12px] text-[var(--color-text-secondary)]">
+          {formatDate(createdAt)}
+        </span>
+      )}
 
       {/* Assignee */}
-      {assigneeName ? (
-        <div data-testid="assignee" className="shrink-0">
-          <Avatar name={assigneeName} src={assigneeImage} size="sm" />
-        </div>
-      ) : (
-        <div className="h-4 w-4 shrink-0" />
-      )}
+      {showProp("assignee") &&
+        (assigneeName ? (
+          <div data-testid="assignee" className="shrink-0">
+            <Avatar name={assigneeName} src={assigneeImage} size="sm" />
+          </div>
+        ) : (
+          <div className="h-4 w-4 shrink-0" />
+        ))}
     </div>
   );
 }

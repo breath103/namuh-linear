@@ -450,3 +450,51 @@ Date: 2026-04-07
 - Defaults to backlog workflow state if no stateId provided
 - Toolbar buttons are visual placeholders — dropdown menus will be added when filter/combobox infrastructure is built
 - Removed autoFocus to comply with Biome accessibility rules
+
+## Iteration 14 — feature-005: Display Options Panel
+Date: 2026-04-07
+
+### What was built
+- Enhanced DisplayOptionsPanel component (`src/components/display-options-panel.tsx`) with:
+  - List/Board layout toggle (navigates between /team/{key}/all and /team/{key}/board)
+  - Interactive Grouping selector (Status, Priority, Assignee, Label, Project, None)
+  - Interactive Sub-group selector (None, Status, Priority, Assignee)
+  - Interactive Ordering selector (Priority, Created, Updated, Manual)
+  - 13 toggleable display properties (ID, Status, Assignee, Priority, Project, Due date, Milestone, Labels, Links, Time in status, Created, Updated, Pull requests)
+  - Show sub-issues toggle, Show triage issues toggle, Show empty columns toggle
+  - Reset button to restore defaults
+  - "Set default for everyone" button to save as team default via API
+- API route `GET/PUT /api/teams/[key]/display-options` — reads/writes display options to team.settings JSONB
+- useDisplayOptions hook (`src/hooks/use-display-options.ts`) — manages display options state, loads from API, provides save/reset functions
+- Integrated display options panel into both Team Issues (list) and Team Board pages
+- IssueRow component updated to respect displayProperties — conditionally shows/hides ID, Status, Priority, Assignee, Labels, Created date
+
+### Test results
+- 20 unit tests passing (tests/display-options.test.tsx)
+  - Panel open/close, layout toggle, grouping/sub-group/ordering selectors
+  - Display property chips, toggle callbacks
+  - Show sub-issues, Show triage, Board options toggles
+  - Reset and Save as default button callbacks
+  - defaultDisplayProperties shape validation
+- 251 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/components/display-options-panel.tsx — enhanced with interactive selectors, exported types
+- src/app/api/teams/[key]/display-options/route.ts — new GET/PUT API route
+- src/hooks/use-display-options.ts — new custom hook for display options state
+- src/app/(app)/team/[key]/all/page.tsx — integrated display options panel + button
+- src/app/(app)/team/[key]/board/page.tsx — integrated display options panel + button
+- src/components/issue-row.tsx — added displayProperties prop for conditional rendering
+- tests/display-options.test.tsx — updated with 20 tests for new API
+- tests/empty-states.test.tsx — added useRouter mock for compatibility
+- prd.json — marked feature-005 build_pass: true
+- qa-hints.json — added feature-005 QA hints
+
+### Decisions
+- Display options stored in team.settings JSONB field (no schema migration needed)
+- Layout toggle navigates between /team/{key}/all and /team/{key}/board via router.push
+- InlineSelect component uses data-testid for dropdown menus to allow scoped testing
+- IssueRow conditionally renders elements based on displayProperties; defaults to showing all if no prop passed (backwards compatible)
+- useDisplayOptions hook loads saved options from API on mount, overrides layout with current page's layout

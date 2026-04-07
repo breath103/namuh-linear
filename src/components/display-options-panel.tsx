@@ -1,6 +1,8 @@
 "use client";
 
-interface DisplayProperties {
+import { useCallback, useRef, useState } from "react";
+
+export interface DisplayProperties {
   id: boolean;
   status: boolean;
   assignee: boolean;
@@ -16,11 +18,26 @@ interface DisplayProperties {
   pullRequests: boolean;
 }
 
-interface DisplayOptionsPanelProps {
+export type GroupByOption =
+  | "status"
+  | "priority"
+  | "assignee"
+  | "label"
+  | "project"
+  | "none";
+export type OrderByOption = "priority" | "created" | "updated" | "manual";
+
+export interface DisplayOptionsPanelProps {
   open: boolean;
   onClose: () => void;
   layout: "list" | "board";
   onLayoutChange: (layout: "list" | "board") => void;
+  groupBy: GroupByOption;
+  onGroupByChange: (groupBy: GroupByOption) => void;
+  subGroupBy: GroupByOption;
+  onSubGroupByChange: (subGroupBy: GroupByOption) => void;
+  orderBy: OrderByOption;
+  onOrderByChange: (orderBy: OrderByOption) => void;
   displayProperties: DisplayProperties;
   onDisplayPropertyToggle: (key: keyof DisplayProperties) => void;
   showSubIssues: boolean;
@@ -29,7 +46,25 @@ interface DisplayOptionsPanelProps {
   onShowTriageIssuesToggle: () => void;
   showEmptyColumns: boolean;
   onShowEmptyColumnsToggle: () => void;
+  onReset?: () => void;
+  onSaveAsDefault?: () => void;
 }
+
+export const defaultDisplayProperties: DisplayProperties = {
+  id: true,
+  status: true,
+  assignee: true,
+  priority: true,
+  project: true,
+  dueDate: true,
+  milestone: false,
+  labels: true,
+  links: false,
+  timeInStatus: false,
+  created: false,
+  updated: false,
+  pullRequests: false,
+};
 
 const propertyLabels: { key: keyof DisplayProperties; label: string }[] = [
   { key: "id", label: "ID" },
@@ -47,17 +82,36 @@ const propertyLabels: { key: keyof DisplayProperties; label: string }[] = [
   { key: "pullRequests", label: "Pull requests" },
 ];
 
+const groupByLabels: Record<GroupByOption, string> = {
+  status: "Status",
+  priority: "Priority",
+  assignee: "Assignee",
+  label: "Label",
+  project: "Project",
+  none: "No grouping",
+};
+
+const orderByLabels: Record<OrderByOption, string> = {
+  priority: "Priority",
+  created: "Created",
+  updated: "Updated",
+  manual: "Manual",
+};
+
 function ToggleSwitch({
   checked,
   onToggle,
+  testId,
 }: {
   checked: boolean;
   onToggle: () => void;
+  testId?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onToggle}
+      data-testid={testId}
       className={`relative h-4 w-7 rounded-full transition-colors ${
         checked ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]"
       }`}
@@ -90,11 +144,76 @@ function OptionRow({
   );
 }
 
+function InlineSelect<T extends string>({
+  value,
+  options,
+  labels,
+  onChange,
+  testId,
+}: {
+  value: T;
+  options: T[];
+  labels: Record<T, string>;
+  onChange: (value: T) => void;
+  testId: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleSelect = useCallback(
+    (opt: T) => {
+      onChange(opt);
+      setIsOpen(false);
+    },
+    [onChange],
+  );
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        data-testid={testId}
+        onClick={() => setIsOpen(!isOpen)}
+        className="rounded-md border border-[var(--color-border)] px-2 py-0.5 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+      >
+        {labels[value]}
+      </button>
+      {isOpen && (
+        <div
+          data-testid={`${testId}-menu`}
+          className="absolute right-0 z-50 mt-1 min-w-[140px] rounded-md border border-[var(--color-border)] bg-[var(--color-content-bg)] py-1 shadow-lg"
+        >
+          {options.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => handleSelect(opt)}
+              className={`flex w-full px-3 py-1.5 text-left text-[12px] transition-colors hover:bg-[var(--color-surface-hover)] ${
+                opt === value
+                  ? "text-[var(--color-accent)]"
+                  : "text-[var(--color-text-primary)]"
+              }`}
+            >
+              {labels[opt]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DisplayOptionsPanel({
   open,
   onClose,
   layout,
   onLayoutChange,
+  groupBy,
+  onGroupByChange,
+  subGroupBy,
+  onSubGroupByChange,
+  orderBy,
+  onOrderByChange,
   displayProperties,
   onDisplayPropertyToggle,
   showSubIssues,
@@ -103,6 +222,8 @@ export function DisplayOptionsPanel({
   onShowTriageIssuesToggle,
   showEmptyColumns,
   onShowEmptyColumnsToggle,
+  onReset,
+  onSaveAsDefault,
 }: DisplayOptionsPanelProps) {
   if (!open) return null;
 
@@ -162,25 +283,44 @@ export function DisplayOptionsPanel({
           </button>
         </div>
 
-        {/* Columns */}
-        <OptionRow label="Columns">
-          <span className="rounded-md border border-[var(--color-border)] px-2 py-0.5 text-[12px] text-[var(--color-text-secondary)]">
-            Status
-          </span>
+        {/* Grouping */}
+        <OptionRow label="Grouping">
+          <InlineSelect
+            value={groupBy}
+            options={[
+              "status",
+              "priority",
+              "assignee",
+              "label",
+              "project",
+              "none",
+            ]}
+            labels={groupByLabels}
+            onChange={onGroupByChange}
+            testId="grouping-select"
+          />
         </OptionRow>
 
-        {/* Rows */}
-        <OptionRow label="Rows">
-          <span className="rounded-md border border-[var(--color-border)] px-2 py-0.5 text-[12px] text-[var(--color-text-secondary)]">
-            No grouping
-          </span>
+        {/* Sub-group */}
+        <OptionRow label="Sub-group">
+          <InlineSelect
+            value={subGroupBy}
+            options={["none", "status", "priority", "assignee"]}
+            labels={groupByLabels}
+            onChange={onSubGroupByChange}
+            testId="subgroup-select"
+          />
         </OptionRow>
 
         {/* Ordering */}
         <OptionRow label="Ordering">
-          <span className="rounded-md border border-[var(--color-border)] px-2 py-0.5 text-[12px] text-[var(--color-text-secondary)]">
-            Priority
-          </span>
+          <InlineSelect
+            value={orderBy}
+            options={["priority", "created", "updated", "manual"]}
+            labels={orderByLabels}
+            onChange={onOrderByChange}
+            testId="ordering-select"
+          />
         </OptionRow>
 
         <div className="my-2 border-t border-[var(--color-border)]" />
@@ -224,6 +364,7 @@ export function DisplayOptionsPanel({
             <button
               key={key}
               type="button"
+              data-testid={`property-${key}`}
               onClick={() => onDisplayPropertyToggle(key)}
               className={`rounded-md border px-2 py-0.5 text-[12px] transition-colors ${
                 displayProperties[key]
@@ -241,12 +382,14 @@ export function DisplayOptionsPanel({
       <div className="flex items-center justify-between border-t border-[var(--color-border)] px-3 py-2">
         <button
           type="button"
+          onClick={onReset}
           className="text-[12px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
         >
           Reset
         </button>
         <button
           type="button"
+          onClick={onSaveAsDefault}
           className="text-[12px] text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
         >
           Set default for everyone

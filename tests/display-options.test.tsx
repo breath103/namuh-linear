@@ -1,31 +1,33 @@
-import { DisplayOptionsPanel } from "@/components/display-options-panel";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  DisplayOptionsPanel,
+  type DisplayOptionsPanelProps,
+  defaultDisplayProperties,
+} from "@/components/display-options-panel";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(() => {
   cleanup();
 });
 
-const defaultProps = {
+const defaultProps: DisplayOptionsPanelProps = {
   open: true,
   onClose: vi.fn(),
-  layout: "list" as const,
+  layout: "list",
   onLayoutChange: vi.fn(),
-  displayProperties: {
-    id: true,
-    status: true,
-    assignee: true,
-    priority: true,
-    project: false,
-    dueDate: false,
-    milestone: false,
-    labels: true,
-    links: false,
-    timeInStatus: false,
-    created: false,
-    updated: false,
-    pullRequests: false,
-  },
+  groupBy: "status",
+  onGroupByChange: vi.fn(),
+  subGroupBy: "none",
+  onSubGroupByChange: vi.fn(),
+  orderBy: "priority",
+  onOrderByChange: vi.fn(),
+  displayProperties: { ...defaultDisplayProperties },
   onDisplayPropertyToggle: vi.fn(),
   showSubIssues: true,
   onShowSubIssuesToggle: vi.fn(),
@@ -33,17 +35,19 @@ const defaultProps = {
   onShowTriageIssuesToggle: vi.fn(),
   showEmptyColumns: false,
   onShowEmptyColumnsToggle: vi.fn(),
+  onReset: vi.fn(),
+  onSaveAsDefault: vi.fn(),
 };
 
 describe("DisplayOptionsPanel", () => {
   it("renders when open", () => {
     render(<DisplayOptionsPanel {...defaultProps} />);
-    expect(screen.getByText("Columns")).toBeDefined();
+    expect(screen.getByText("Grouping")).toBeDefined();
   });
 
   it("does not render when closed", () => {
     render(<DisplayOptionsPanel {...defaultProps} open={false} />);
-    expect(screen.queryByText("Columns")).toBeNull();
+    expect(screen.queryByText("Grouping")).toBeNull();
   });
 
   it("renders List and Board layout tabs", () => {
@@ -53,7 +57,7 @@ describe("DisplayOptionsPanel", () => {
   });
 
   it("highlights active layout", () => {
-    const { container } = render(<DisplayOptionsPanel {...defaultProps} />);
+    render(<DisplayOptionsPanel {...defaultProps} />);
     const listBtn = screen.getByText("List").closest("button");
     expect(listBtn?.className).toContain("bg-");
   });
@@ -67,15 +71,76 @@ describe("DisplayOptionsPanel", () => {
     expect(onLayoutChange).toHaveBeenCalledWith("board");
   });
 
+  it("renders grouping selector showing current value", () => {
+    render(<DisplayOptionsPanel {...defaultProps} groupBy="status" />);
+    const selector = screen.getByTestId("grouping-select");
+    expect(selector.textContent).toBe("Status");
+  });
+
+  it("calls onGroupByChange when grouping option is selected", () => {
+    const onGroupByChange = vi.fn();
+    render(
+      <DisplayOptionsPanel
+        {...defaultProps}
+        onGroupByChange={onGroupByChange}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("grouping-select"));
+    // "Label" is unique to the groupBy dropdown (not in properties or ordering)
+    fireEvent.click(screen.getByText("Label"));
+    expect(onGroupByChange).toHaveBeenCalledWith("label");
+  });
+
+  it("renders sub-group selector", () => {
+    render(<DisplayOptionsPanel {...defaultProps} />);
+    expect(screen.getByText("Sub-group")).toBeDefined();
+    expect(screen.getByTestId("subgroup-select")).toBeDefined();
+  });
+
+  it("calls onSubGroupByChange when sub-group option is selected", () => {
+    const onSubGroupByChange = vi.fn();
+    render(
+      <DisplayOptionsPanel
+        {...defaultProps}
+        onSubGroupByChange={onSubGroupByChange}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("subgroup-select"));
+    const menu = screen.getByTestId("subgroup-select-menu");
+    fireEvent.click(within(menu).getByText("Status"));
+    expect(onSubGroupByChange).toHaveBeenCalledWith("status");
+  });
+
+  it("renders ordering selector showing current value", () => {
+    render(<DisplayOptionsPanel {...defaultProps} orderBy="priority" />);
+    const selector = screen.getByTestId("ordering-select");
+    expect(selector.textContent).toBe("Priority");
+  });
+
+  it("calls onOrderByChange when ordering option is selected", () => {
+    const onOrderByChange = vi.fn();
+    render(
+      <DisplayOptionsPanel
+        {...defaultProps}
+        onOrderByChange={onOrderByChange}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("ordering-select"));
+    // "Manual" is unique to the ordering dropdown
+    fireEvent.click(screen.getByText("Manual"));
+    expect(onOrderByChange).toHaveBeenCalledWith("manual");
+  });
+
   it("renders display property chips", () => {
     render(<DisplayOptionsPanel {...defaultProps} />);
     expect(screen.getByText("ID")).toBeDefined();
     expect(screen.getByText("Assignee")).toBeDefined();
-    expect(screen.getAllByText("Priority").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Labels")).toBeDefined();
     expect(screen.getByText("Project")).toBeDefined();
     expect(screen.getByText("Due date")).toBeDefined();
     expect(screen.getByText("Milestone")).toBeDefined();
+    expect(screen.getByText("Time in status")).toBeDefined();
+    expect(screen.getByText("Pull requests")).toBeDefined();
   });
 
   it("calls onDisplayPropertyToggle when clicking a property", () => {
@@ -86,7 +151,7 @@ describe("DisplayOptionsPanel", () => {
         onDisplayPropertyToggle={onToggle}
       />,
     );
-    fireEvent.click(screen.getByText("Project"));
+    fireEvent.click(screen.getByTestId("property-project"));
     expect(onToggle).toHaveBeenCalledWith("project");
   });
 
@@ -100,19 +165,49 @@ describe("DisplayOptionsPanel", () => {
     expect(screen.getByText("Show triage issues")).toBeDefined();
   });
 
-  it("renders Board options section", () => {
+  it("renders Board options section with Show empty columns", () => {
     render(<DisplayOptionsPanel {...defaultProps} />);
     expect(screen.getByText("Board options")).toBeDefined();
     expect(screen.getByText("Show empty columns")).toBeDefined();
   });
 
-  it("renders Ordering row", () => {
-    render(<DisplayOptionsPanel {...defaultProps} />);
-    expect(screen.getByText("Ordering")).toBeDefined();
+  it("renders Reset button and calls onReset", () => {
+    const onReset = vi.fn();
+    render(<DisplayOptionsPanel {...defaultProps} onReset={onReset} />);
+    fireEvent.click(screen.getByText("Reset"));
+    expect(onReset).toHaveBeenCalled();
   });
 
-  it("renders Reset button", () => {
-    render(<DisplayOptionsPanel {...defaultProps} />);
-    expect(screen.getByText("Reset")).toBeDefined();
+  it("renders Set default button and calls onSaveAsDefault", () => {
+    const onSaveAsDefault = vi.fn();
+    render(
+      <DisplayOptionsPanel
+        {...defaultProps}
+        onSaveAsDefault={onSaveAsDefault}
+      />,
+    );
+    fireEvent.click(screen.getByText("Set default for everyone"));
+    expect(onSaveAsDefault).toHaveBeenCalled();
+  });
+});
+
+describe("defaultDisplayProperties", () => {
+  it("has expected enabled properties", () => {
+    expect(defaultDisplayProperties.id).toBe(true);
+    expect(defaultDisplayProperties.status).toBe(true);
+    expect(defaultDisplayProperties.assignee).toBe(true);
+    expect(defaultDisplayProperties.priority).toBe(true);
+    expect(defaultDisplayProperties.project).toBe(true);
+    expect(defaultDisplayProperties.labels).toBe(true);
+    expect(defaultDisplayProperties.dueDate).toBe(true);
+  });
+
+  it("has expected disabled properties", () => {
+    expect(defaultDisplayProperties.timeInStatus).toBe(false);
+    expect(defaultDisplayProperties.pullRequests).toBe(false);
+    expect(defaultDisplayProperties.links).toBe(false);
+    expect(defaultDisplayProperties.created).toBe(false);
+    expect(defaultDisplayProperties.updated).toBe(false);
+    expect(defaultDisplayProperties.milestone).toBe(false);
   });
 });
