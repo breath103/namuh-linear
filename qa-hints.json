@@ -672,5 +672,34 @@
       "Member role management",
       "Real API data loading"
     ]
+  },
+  {
+    "feature_id": "settings-007",
+    "tests_written": [
+      "renders page title 'Issue labels'",
+      "renders 'New group' and 'New label' buttons",
+      "renders table headers (Name, Description, Rules, Issues, Last applied, Created)",
+      "renders label names from API",
+      "renders label descriptions and placeholder text",
+      "renders issue counts",
+      "renders color dots for each label",
+      "renders filter input",
+      "filters labels by name",
+      "shows empty state when no labels",
+      "shows description placeholder for labels without description",
+      "opens create label modal with name input and color picker",
+      "formatRelativeTime returns correct relative times",
+      "formatCreatedDate formats as Mon YYYY"
+    ],
+    "needs_deeper_qa": [
+      "Inline description editing saves via PATCH API",
+      "Create label modal submits via POST API and refreshes list",
+      "Color picker selection in create modal",
+      "Label deletion flow (not yet exposed in UI)",
+      "Visual comparison with Linear screenshot",
+      "Real API data loading with workspace-scoped labels",
+      "New group button functionality (not yet implemented)",
+      "Sort by Name column"
+    ]
   }
 ]

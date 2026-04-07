@@ -1096,3 +1096,46 @@ Date: 2026-04-07
 - src/app/(app)/settings/members/page.tsx — full members admin page
 - tests/settings-members.test.tsx — 6 tests
 - prd.json, qa-hints.json
+
+## Iteration 36 — settings-007: Issue Labels Settings
+Date: 2026-04-07
+
+### What was built
+- API route `GET /api/labels` — fetches workspace-scoped labels with issue counts, joined with issueLabel table
+- API route `POST /api/labels` — creates new label with name, color, description
+- API route `PATCH /api/labels/[id]` — updates label name, color, or description
+- API route `DELETE /api/labels/[id]` — deletes label (workspace-scoped auth check)
+- Enhanced Issue Labels settings page (`/settings/issue-labels`) with:
+  - Filter/search input with search icon ("Filter by name...")
+  - "Workspace" scope dropdown button
+  - Table columns: Name (with colored dot), Description (inline editable), Rules, Issues count, Last applied (relative time), Created (Mon YYYY format)
+  - Inline description editing — click to edit, blur/enter to save via PATCH API
+  - "New label" button opens create modal with name input and 12-color picker
+  - "New group" button (placeholder for label grouping)
+  - Empty state for no labels and no filter matches
+  - Relative time formatting (Today, X days ago, X weeks ago, X months ago)
+
+### Test results
+- 20 unit tests passing (tests/issue-labels.test.tsx)
+  - 1 ColorDot test (renders with color)
+  - 5 formatRelativeTime tests (null, today, yesterday, days, weeks)
+  - 2 formatCreatedDate tests (Mon YYYY format)
+  - 12 IssueLabelsPage integration tests (title, buttons, headers, labels, counts, dots, filter, empty state, description placeholder, create modal)
+- 453 total tests passing (excluding pre-existing onboard-validation and empty-states failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/app/api/labels/route.ts — new GET/POST API route
+- src/app/api/labels/[id]/route.ts — new PATCH/DELETE API route
+- src/app/(app)/settings/issue-labels/page.tsx — enhanced with filter, create modal, inline edit, color picker
+- tests/issue-labels.test.tsx — new unit test file (20 tests)
+- prd.json — marked settings-007 build_pass: true
+- qa-hints.json — added settings-007 QA hints
+
+### Decisions
+- Used same auth pattern as other API routes (auth.api.getSession + member lookup for workspace)
+- Workspace-scoped labels only (teamId is null) — team-scoped labels handled separately in team settings
+- Relative time for "Last applied" using updatedAt as proxy when issueCount > 0
+- Inline description uses controlled input with blur/enter save and escape cancel
+- Color picker shows 12 predefined colors matching Linear's palette
