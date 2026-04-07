@@ -1,6 +1,7 @@
 "use client";
 
 import { BoardColumn } from "@/components/board-column";
+import { CreateIssueModal } from "@/components/create-issue-modal";
 import {
   DisplayOptionsPanel,
   type DisplayProperties,
@@ -69,6 +70,7 @@ export default function TeamBoardPage() {
   const [data, setData] = useState<IssuesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDisplayOptions, setShowDisplayOptions] = useState(false);
+  const [showCreateIssue, setShowCreateIssue] = useState(false);
 
   const { options, updateOptions, saveAsDefault, reset } = useDisplayOptions(
     params.key,
@@ -76,20 +78,21 @@ export default function TeamBoardPage() {
   );
   const { filters, updateFilters } = useFilters();
 
-  useEffect(() => {
-    async function fetchIssues() {
-      try {
-        const res = await fetch(`/api/teams/${params.key}/issues`);
-        if (res.ok) {
-          const json = await res.json();
-          setData(json);
-        }
-      } finally {
-        setLoading(false);
+  const fetchIssues = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/teams/${params.key}/issues`);
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
       }
+    } finally {
+      setLoading(false);
     }
-    fetchIssues();
   }, [params.key]);
+
+  useEffect(() => {
+    fetchIssues();
+  }, [fetchIssues]);
 
   const handleLayoutChange = useCallback(
     (layout: "list" | "board") => {
@@ -113,47 +116,14 @@ export default function TeamBoardPage() {
     [options.displayProperties, updateOptions],
   );
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
-        Loading...
-      </div>
-    );
-  }
-
-  const totalIssues =
-    data?.groups.reduce((sum, g) => sum + g.issues.length, 0) ?? 0;
-
-  if (!data || totalIssues === 0) {
-    return (
-      <EmptyState
-        title="No issues"
-        description="Create issues to see them on the board, organized by status."
-        icon={
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#6b6f76"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            role="img"
-            aria-label="Board"
-          >
-            <rect width="6" height="14" x="4" y="5" rx="1" />
-            <rect width="6" height="10" x="14" y="7" rx="1" />
-          </svg>
-        }
-        action={{ label: "Create issue" }}
-      />
-    );
-  }
+  const totalIssues = (data?.groups ?? []).reduce(
+    (sum, g) => sum + g.issues.length,
+    0,
+  );
 
   // Apply filters and filter out empty columns for completed/canceled unless showEmptyColumns is on
   const visibleGroups = useMemo(() => {
-    return data.groups
+    return (data?.groups ?? [])
       .map((g) => ({
         ...g,
         issues: applyFilters(g.issues, filters),
@@ -164,7 +134,55 @@ export default function TeamBoardPage() {
           options.showEmptyColumns ||
           (g.state.category !== "completed" && g.state.category !== "canceled"),
       );
-  }, [data.groups, filters, options.showEmptyColumns]);
+  }, [data?.groups, filters, options.showEmptyColumns]);
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center text-[var(--color-text-secondary)]">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!data || totalIssues === 0) {
+    return (
+      <>
+        <EmptyState
+          title="No issues"
+          description="Create issues to see them on the board, organized by status."
+          icon={
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#6b6f76"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              role="img"
+              aria-label="Board"
+            >
+              <rect width="6" height="14" x="4" y="5" rx="1" />
+              <rect width="6" height="10" x="14" y="7" rx="1" />
+            </svg>
+          }
+          action={{
+            label: "Create issue",
+            onClick: () => setShowCreateIssue(true),
+          }}
+        />
+        <CreateIssueModal
+          open={showCreateIssue}
+          onClose={() => setShowCreateIssue(false)}
+          onCreated={fetchIssues}
+          teamKey={data?.team?.key ?? params.key}
+          teamName={data?.team?.name ?? params.key}
+          teamId={data?.team?.id ?? ""}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">

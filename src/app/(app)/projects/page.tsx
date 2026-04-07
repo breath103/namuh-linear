@@ -2,7 +2,7 @@
 
 import { EmptyState } from "@/components/empty-state";
 import { ProjectRow } from "@/components/project-row";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface ProjectData {
   id: string;
@@ -20,21 +20,45 @@ interface ProjectData {
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const fetchProjects = useCallback(async () => {
+    try {
+      const res = await fetch("/api/projects");
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.projects ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function fetchProjects() {
-      try {
-        const res = await fetch("/api/projects");
-        if (res.ok) {
-          const data = await res.json();
-          setProjects(data.projects ?? []);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchProjects();
-  }, []);
+  }, [fetchProjects]);
+
+  const handleCreate = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.get("name"),
+          description: formData.get("description"),
+        }),
+      });
+
+      if (res.ok) {
+        setShowCreateForm(false);
+        await fetchProjects();
+      }
+    },
+    [fetchProjects],
+  );
 
   if (loading) {
     return (
@@ -46,29 +70,72 @@ export default function ProjectsPage() {
 
   if (projects.length === 0) {
     return (
-      <EmptyState
-        title="No projects"
-        description="Projects are time-bound deliverables that group issues across teams. Create one to start tracking progress."
-        icon={
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#6b6f76"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            role="img"
-            aria-label="Projects"
+      <div className="flex h-full flex-col">
+        {showCreateForm ? (
+          <form
+            onSubmit={handleCreate}
+            className="border-b border-[var(--color-border)] bg-[var(--color-surface-hover)] px-4 py-3"
           >
-            <path d="M2 17 12 22 22 17" />
-            <path d="M2 12 12 17 22 12" />
-            <path d="M12 2 2 7 12 12 22 7Z" />
-          </svg>
-        }
-        action={{ label: "Create project" }}
-      />
+            <div className="flex flex-col gap-3">
+              <input
+                name="name"
+                type="text"
+                placeholder="Project name"
+                required
+                className="rounded-md border border-[var(--color-border)] bg-[var(--color-content-bg)] px-3 py-1.5 text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none"
+              />
+              <textarea
+                name="description"
+                placeholder="Description (optional)"
+                rows={2}
+                className="rounded-md border border-[var(--color-border)] bg-[var(--color-content-bg)] px-3 py-1.5 text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:opacity-90"
+                >
+                  Create project
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  className="rounded-md px-3 py-1.5 text-[13px] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </form>
+        ) : (
+          <EmptyState
+            title="No projects"
+            description="Projects are time-bound deliverables that group issues across teams. Create one to start tracking progress."
+            icon={
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#6b6f76"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                role="img"
+                aria-label="Projects"
+              >
+                <path d="M2 17 12 22 22 17" />
+                <path d="M2 12 12 17 22 12" />
+                <path d="M12 2 2 7 12 12 22 7Z" />
+              </svg>
+            }
+            action={{
+              label: "Create project",
+              onClick: () => setShowCreateForm(true),
+            }}
+          />
+        )}
+      </div>
     );
   }
 
@@ -85,10 +152,55 @@ export default function ProjectsPage() {
           </span>
         </div>
         <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => setShowCreateForm(true)}
+          className="mr-3 rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:opacity-90"
+        >
+          New project
+        </button>
         <span className="text-[12px] text-[var(--color-text-secondary)]">
           {projects.length} projects
         </span>
       </div>
+
+      {showCreateForm && (
+        <form
+          onSubmit={handleCreate}
+          className="border-b border-[var(--color-border)] bg-[var(--color-surface-hover)] px-4 py-3"
+        >
+          <div className="flex flex-col gap-3">
+            <input
+              name="name"
+              type="text"
+              placeholder="Project name"
+              required
+              className="rounded-md border border-[var(--color-border)] bg-[var(--color-content-bg)] px-3 py-1.5 text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none"
+            />
+            <textarea
+              name="description"
+              placeholder="Description (optional)"
+              rows={2}
+              className="rounded-md border border-[var(--color-border)] bg-[var(--color-content-bg)] px-3 py-1.5 text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                className="rounded-md bg-[var(--color-accent)] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:opacity-90"
+              >
+                Create project
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(false)}
+                className="rounded-md px-3 py-1.5 text-[13px] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
 
       {/* Table header */}
       <div className="flex h-[32px] items-center border-b border-[var(--color-border)] px-4 text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">

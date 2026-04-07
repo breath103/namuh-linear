@@ -1,15 +1,19 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import {
-  issue,
-  member,
-  project,
-  projectMilestone,
-  user,
-} from "@/lib/db/schema";
-import { and, count, eq, sql } from "drizzle-orm";
+import { issue, member, project, user } from "@/lib/db/schema";
+import { count, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+
+function sanitizeProjectSlug(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 255)
+    .replace(/-+$/g, "");
+}
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -102,4 +106,73 @@ export async function GET() {
   });
 
   return NextResponse.json({ projects: result });
+}
+
+export async function POST(request: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const members = await db
+    .select({ workspaceId: member.workspaceId })
+    .from(member)
+    .where(eq(member.userId, session.user.id))
+    .limit(1);
+
+  if (members.length === 0) {
+    return NextResponse.json({ error: "No workspace" }, { status: 404 });
+  }
+
+  const body = await request.json();
+  const name = `${body.name ?? ""}`.trim();
+  const description =
+    typeof body.description === "string" && body.description.trim()
+      ? body.description.trim()
+      : null;
+
+  if (!name) {
+    return NextResponse.json(
+      { error: "Project name is required" },
+      { status: 400 },
+    );
+  }
+
+  const slug = sanitizeProjectSlug(body.slug ?? name);
+
+  if (!slug) {
+    return NextResponse.json(
+      { error: "Project name must include letters or numbers" },
+      { status: 400 },
+    );
+  }
+
+  let finalSlug = slug;
+  let suffix = 2;
+  const takenSlugs = new Set(
+    (
+      await db
+        .select({ slug: project.slug })
+        .from(project)
+        .where(eq(project.workspaceId, members[0].workspaceId))
+    ).map((row) => row.slug),
+  );
+
+  while (takenSlugs.has(finalSlug)) {
+    finalSlug = `${slug}-${suffix}`;
+    suffix += 1;
+  }
+
+  const [newProject] = await db
+    .insert(project)
+    .values({
+      name,
+      description,
+      slug: finalSlug,
+      workspaceId: members[0].workspaceId,
+      leadId: session.user.id,
+    })
+    .returning();
+
+  return NextResponse.json(newProject, { status: 201 });
 }

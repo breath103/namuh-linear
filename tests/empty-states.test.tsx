@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import InboxPage from "@/app/(app)/inbox/page";
@@ -88,6 +94,82 @@ describe("Empty state pages", () => {
       await screen.findByText("No issues", {}, { timeout: 2000 }),
     ).toBeDefined();
     expect(screen.getByText("Create issue")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Create issue" }));
+    expect(await screen.findByText("New issue")).toBeDefined();
+    expect(screen.getByPlaceholderText("Issue title")).toBeDefined();
+  });
+
+  it("Team Issues page recovers from empty state after creating the first issue", async () => {
+    let issueCreated = false;
+    global.fetch = vi.fn((input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === "/api/issues" && init?.method === "POST") {
+        issueCreated = true;
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ id: "issue-1" }),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            team: { id: "team-1", name: "Engineering", key: "ENG" },
+            groups: issueCreated
+              ? [
+                  {
+                    state: {
+                      id: "state-1",
+                      name: "Backlog",
+                      category: "backlog",
+                      color: "#6b6f76",
+                      position: 1,
+                    },
+                    issues: [
+                      {
+                        id: "issue-1",
+                        number: 1,
+                        identifier: "ENG-1",
+                        title: "First issue",
+                        priority: "none",
+                        stateId: "state-1",
+                        assigneeId: null,
+                        assignee: null,
+                        labels: [],
+                        labelIds: [],
+                        projectId: null,
+                        dueDate: null,
+                        createdAt: "2026-04-07T00:00:00.000Z",
+                      },
+                    ],
+                  },
+                ]
+              : [],
+            filterOptions: {
+              statuses: [],
+              assignees: [],
+              labels: [],
+              priorities: [],
+            },
+          }),
+      });
+    }) as unknown as typeof fetch;
+
+    render(<TeamIssuesPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create issue" }),
+    );
+    fireEvent.change(screen.getByPlaceholderText("Issue title"), {
+      target: { value: "First issue" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create Issue" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("ENG-1")).toBeDefined();
+      expect(screen.getByText("First issue")).toBeDefined();
+    });
   });
 
   it("Team Board page shows 'No issues' with create CTA", async () => {
@@ -104,6 +186,79 @@ describe("Empty state pages", () => {
       await screen.findByText("No issues", {}, { timeout: 2000 }),
     ).toBeDefined();
     expect(screen.getByText("Create issue")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Create issue" }));
+    expect(await screen.findByText("New issue")).toBeDefined();
+    expect(screen.getByPlaceholderText("Issue title")).toBeDefined();
+  });
+
+  it("Team Board page recovers from empty state after creating the first issue", async () => {
+    let issueCreated = false;
+    global.fetch = vi.fn((input, init) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === "/api/issues" && init?.method === "POST") {
+        issueCreated = true;
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ id: "issue-1" }),
+        });
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            team: { id: "team-1", name: "Engineering", key: "ENG" },
+            groups: issueCreated
+              ? [
+                  {
+                    state: {
+                      id: "state-1",
+                      name: "Backlog",
+                      category: "backlog",
+                      color: "#6b6f76",
+                    },
+                    issues: [
+                      {
+                        id: "issue-1",
+                        identifier: "ENG-1",
+                        title: "First board issue",
+                        priority: "none",
+                        stateId: "state-1",
+                        assigneeId: null,
+                        assignee: null,
+                        labels: [],
+                        labelIds: [],
+                        projectId: null,
+                        createdAt: "2026-04-07T00:00:00.000Z",
+                      },
+                    ],
+                  },
+                ]
+              : [],
+            filterOptions: {
+              statuses: [],
+              assignees: [],
+              labels: [],
+              priorities: [],
+            },
+          }),
+      });
+    }) as unknown as typeof fetch;
+
+    render(<TeamBoardPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create issue" }),
+    );
+    fireEvent.change(screen.getByPlaceholderText("Issue title"), {
+      target: { value: "First board issue" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create Issue" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("ENG-1")).toBeDefined();
+      expect(screen.getByText("First board issue")).toBeDefined();
+    });
   });
 
   it("Team Cycles page shows 'No active cycle'", async () => {
@@ -136,6 +291,11 @@ describe("Empty state pages", () => {
       await screen.findByText("No issues to triage", {}, { timeout: 2000 }),
     ).toBeDefined();
     expect(screen.getByText("Create triage issue")).toBeDefined();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create triage issue" }),
+    );
+    expect(await screen.findByText("New issue")).toBeDefined();
+    expect(screen.getByPlaceholderText("Issue title")).toBeDefined();
   });
 
   it("Projects page shows 'No projects' with create CTA", async () => {
@@ -148,6 +308,8 @@ describe("Empty state pages", () => {
       await screen.findByText("No projects", {}, { timeout: 2000 }),
     ).toBeDefined();
     expect(screen.getByText("Create project")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+    expect(await screen.findByPlaceholderText("Project name")).toBeDefined();
   });
 
   it("Inbox page shows 'You're all caught up'", async () => {

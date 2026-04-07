@@ -8,7 +8,9 @@ interface CreateIssueModalProps {
   teamKey: string;
   teamName: string;
   teamId: string;
-  defaultStateId: string;
+  defaultStateId?: string;
+  defaultStateName?: string;
+  onCreated?: () => void | Promise<void>;
 }
 
 export function CreateIssueModal({
@@ -18,6 +20,8 @@ export function CreateIssueModal({
   teamName,
   teamId,
   defaultStateId,
+  defaultStateName = "Backlog",
+  onCreated,
 }: CreateIssueModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -45,6 +49,7 @@ export function CreateIssueModal({
       });
 
       if (res.ok) {
+        await onCreated?.();
         if (createMore) {
           setTitle("");
           setDescription("");
@@ -67,7 +72,16 @@ export function CreateIssueModal({
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-[640px] rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] shadow-2xl">
+      <dialog
+        open
+        aria-modal="true"
+        aria-label={`Create issue for ${teamName}`}
+        onCancel={(e) => {
+          e.preventDefault();
+          onClose();
+        }}
+        className="relative z-10 w-full max-w-[640px] rounded-xl border border-[var(--color-border)] bg-[var(--color-content-bg)] shadow-2xl"
+      >
         {/* Header */}
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-2.5">
           <span className="flex items-center gap-1.5 rounded-md bg-[var(--color-surface)] px-2 py-0.5 text-[12px] font-medium text-[var(--color-text-primary)]">
@@ -160,7 +174,7 @@ export function CreateIssueModal({
                 strokeLinecap="round"
               />
             </svg>
-            Backlog
+            {defaultStateName}
           </button>
 
           {/* Priority */}
@@ -255,7 +269,7 @@ export function CreateIssueModal({
             {submitting ? "Creating..." : "Create Issue"}
           </button>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 }

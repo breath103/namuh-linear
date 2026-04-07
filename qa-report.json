@@ -352,5 +352,47 @@
       }
     ],
     "fix_description": "Generated globally unique default team keys during workspace creation, added shell-side resolution of workspace/team context from the active team route, and re-verified the invite send, email delivery, accept-link, and skip flows. `qa_pass` is now true for onboarding-002; the remaining full-E2E failures are the pre-existing unrelated command-palette specs."
+  },
+  {
+    "feature_id": "onboarding-003",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 568 unit tests passed before the onboarding-003 fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the app still loaded successfully on `http://localhost:3015`.",
+      "Verified the authenticated empty states inside the app shell in Ever for Issues, Board, Cycles, Triage, Projects, Inbox, My Issues, and Initiatives.",
+      "Reproduced the broken CTA behavior on the live clone: clicking the empty-state `Create issue` buttons on `/team/ONB/all` and `/team/ONB/board`, `Create triage issue` on `/team/ONB/triage`, and `Create project` on `/projects` did nothing.",
+      "Added regression coverage for CTA opening behavior plus the empty-to-first-item transition on the list and board pages; verified the updated test suite now covers those flows.",
+      "Verified the fixed issue CTA end to end in the browser: `/team/ONB/all` opened the create-issue dialog, submitted `First onboarding issue`, and the page recovered from empty state to show issue `ONB-1`. Saved screenshot to `ralph/screenshots/qa/onboarding-003-attempt-1-issues-created.png`.",
+      "Verified the fixed triage CTA end to end in the browser: `/team/ONB/triage` opened the triage-scoped create dialog, submitted `First triage issue`, and the page rendered the new triage row `ONB-2`. Saved screenshot to `ralph/screenshots/qa/onboarding-003-attempt-1-triage-created.png`.",
+      "Verified the fixed project creation path in the browser: `/projects` now exposes working creation UI and renders the created project row. Saved screenshot to `ralph/screenshots/qa/onboarding-003-attempt-1-projects-created.png`.",
+      "Re-checked the other empty-state surfaces after the fixes: Cycles still opens its create form, Initiatives still opens its create form, Inbox still shows `You're all caught up`, and My Issues still shows `No issues assigned`.",
+      "Ran `make test-e2e` because the fix touched reusable create flows and team routes; smoke still passed and the only failing specs were the pre-existing unrelated command-palette E2E tests.",
+      "Ran `make check && make test` after the fixes; typecheck, Biome, and all 570 unit tests passed."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "The issue and triage empty-state CTAs were dead clicks instead of opening creation UI.",
+        "expected": "The empty-state `Create issue` and `Create triage issue` buttons should open a working creation flow from the current page.",
+        "actual": "Clicking the CTAs on `/team/ONB/all`, `/team/ONB/board`, and `/team/ONB/triage` left the page unchanged and opened no dialog or form.",
+        "reproduction": "1. Sign in and navigate to `/team/ONB/all`, `/team/ONB/board`, or `/team/ONB/triage` while the page is empty.\n2. Click the empty-state CTA.\n3. Observe that nothing opens before the fix."
+      },
+      {
+        "severity": "major",
+        "description": "The projects empty-state CTA had no creation path behind it.",
+        "expected": "The empty-state `Create project` CTA on `/projects` should open project creation UI and allow the first project to be created.",
+        "actual": "The button rendered, but clicking it did nothing because the page had no create form and `/api/projects` only supported `GET`.",
+        "reproduction": "1. Sign in and navigate to `/projects` with no projects in the workspace.\n2. Click `Create project`.\n3. Observe that no form appears and no request is sent before the fix."
+      },
+      {
+        "severity": "major",
+        "description": "Creating the first issue from an empty list or board crashed the page because the component changed its hook order after data appeared.",
+        "expected": "Submitting the first created issue should transition the page from its empty state to the populated list/board without crashing.",
+        "actual": "After the first created issue, the page hit React's hook-order failure and dropped into Next's `This page couldn’t load` error state.",
+        "reproduction": "1. Open `/team/ONB/all` or `/team/ONB/board` while empty.\n2. Open the create-issue dialog and submit the first issue.\n3. Observe the runtime error page before the fix instead of the new issue rendering."
+      }
+    ],
+    "fix_description": "Mounted working issue creation flows for the issue/board/triage empty states, added the missing project creation UI plus `POST /api/projects`, and fixed the list/board hook-order crash exposed by the first created issue. `qa_pass` is now true for onboarding-003; the remaining full-E2E failures are the pre-existing unrelated command-palette specs."
   }
 ]

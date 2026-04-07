@@ -1,5 +1,6 @@
 "use client";
 
+import { CreateIssueModal } from "@/components/create-issue-modal";
 import { EmptyState } from "@/components/empty-state";
 import { TriageHeader } from "@/components/triage-header";
 import { TriageRow } from "@/components/triage-row";
@@ -21,12 +22,15 @@ interface TriageResponse {
   team: { id: string; name: string; key: string };
   issues: TriageIssue[];
   count: number;
+  createStateId: string | null;
+  createStateName: string | null;
 }
 
 export default function TeamTriagePage() {
   const params = useParams<{ key: string }>();
   const [data, setData] = useState<TriageResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showCreateIssue, setShowCreateIssue] = useState(false);
 
   const fetchTriage = useCallback(async () => {
     try {
@@ -82,33 +86,45 @@ export default function TeamTriagePage() {
 
   if (!data || data.issues.length === 0) {
     return (
-      <div className="flex h-full flex-col">
-        <TriageHeader teamName={data?.team.name ?? ""} count={0} />
-        <EmptyState
-          title="No issues to triage"
-          description="When new issues are created, they'll appear here for review. Accept them into your workflow or decline."
-          icon={
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#6b6f76"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              role="img"
-              aria-label="Triage"
-            >
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-            </svg>
-          }
-          action={{
-            label: "Create triage issue",
-            onClick: () => {},
-          }}
+      <>
+        <div className="flex h-full flex-col">
+          <TriageHeader teamName={data?.team.name ?? ""} count={0} />
+          <EmptyState
+            title="No issues to triage"
+            description="When new issues are created, they'll appear here for review. Accept them into your workflow or decline."
+            icon={
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#6b6f76"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                role="img"
+                aria-label="Triage"
+              >
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+              </svg>
+            }
+            action={{
+              label: "Create triage issue",
+              onClick: () => setShowCreateIssue(true),
+            }}
+          />
+        </div>
+        <CreateIssueModal
+          open={showCreateIssue}
+          onClose={() => setShowCreateIssue(false)}
+          onCreated={fetchTriage}
+          teamKey={data?.team?.key ?? params.key}
+          teamName={data?.team?.name ?? params.key}
+          teamId={data?.team?.id ?? ""}
+          defaultStateId={data?.createStateId ?? undefined}
+          defaultStateName={data?.createStateName ?? "Triage"}
         />
-      </div>
+      </>
     );
   }
 

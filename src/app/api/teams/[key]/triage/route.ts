@@ -37,7 +37,7 @@ export async function GET(
 
   // Find triage workflow states
   const triageStates = await db
-    .select({ id: workflowState.id })
+    .select({ id: workflowState.id, name: workflowState.name })
     .from(workflowState)
     .where(
       and(
@@ -51,6 +51,8 @@ export async function GET(
       team: teamRecord,
       issues: [],
       count: 0,
+      createStateId: null,
+      createStateName: null,
     });
   }
 
@@ -124,5 +126,7 @@ export async function GET(
     team: teamRecord,
     issues: formattedIssues,
     count: formattedIssues.length,
+    createStateId: triageStateIds[0] ?? null,
+    createStateName: triageStates[0]?.name ?? null,
   });
 }
