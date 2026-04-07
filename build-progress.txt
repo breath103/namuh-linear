@@ -772,3 +772,58 @@ Date: 2026-04-07
 - Reused IssueRow and IssuesGroupHeader from issues feature for cycle detail view
 - Auto-increment cycle number per team
 - On cycle deletion, issues are unlinked (cycleId set to null) rather than deleted
+
+## Iteration 23 — feature-031: Initiatives Page
+Date: 2026-04-07
+
+### What was built
+- Initiatives API routes (CRUD):
+  - `GET /api/initiatives` — list all initiatives with project counts
+  - `POST /api/initiatives` — create new initiative
+  - `GET /api/initiatives/[id]` — initiative detail with linked projects and issue progress
+  - `PATCH /api/initiatives/[id]` — update initiative properties
+  - `DELETE /api/initiatives/[id]` — delete initiative
+- Initiatives page (`src/app/(app)/initiatives/page.tsx`):
+  - Tabs: Active, Planned, Completed — filters initiatives by status
+  - Empty state per tab with explanation text and "Create initiative" CTA
+  - Create initiative form: name (required), description (optional)
+  - Initiative rows with name, description, status badge, project progress bar
+  - Footer with initiative count
+- Initiative detail page (`src/app/(app)/initiatives/[id]/page.tsx`):
+  - Back navigation breadcrumb to initiatives list
+  - Header with name and status badge
+  - Description section
+  - Progress summary bar (completed/total projects)
+  - Linked projects list with individual issue progress percentages
+- Reusable components:
+  - `InitiativeStatusBadge` — colored badge (Active=green, Planned=blue, Completed=gray)
+  - `InitiativeRow` — list item with icon, name, status, progress
+  - `InitiativeProjectList` — linked projects with per-project progress bars
+
+### Test results
+- 11 unit tests passing (tests/initiatives.test.tsx):
+  - 5 InitiativeRow tests (name, active/planned/completed status, project count + progress)
+  - 3 InitiativeStatusBadge tests (all three statuses)
+  - 3 InitiativeProjectList tests (renders projects, empty message, progress percentage)
+- 357 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/components/initiative-status-badge.tsx — new status badge component
+- src/components/initiative-row.tsx — new initiative list row component
+- src/components/initiative-project-list.tsx — new linked projects list component
+- src/app/(app)/initiatives/page.tsx — updated from empty state to full page with tabs
+- src/app/(app)/initiatives/[id]/page.tsx — new initiative detail page
+- src/app/api/initiatives/route.ts — new API route (GET + POST)
+- src/app/api/initiatives/[id]/route.ts — new API route (GET + PATCH + DELETE)
+- tests/initiatives.test.tsx — new unit test file (11 tests)
+- prd.json — marked feature-031 build_pass: true
+- qa-hints.json — added feature-031 QA hints
+
+### Decisions
+- Initiatives are workspace-scoped (not team-scoped), looked up via member table
+- Status badge colors: Active=green, Planned=blue, Completed=gray
+- Project progress shown as both bar and fraction text
+- Create form defaults status to current active tab
+- Keyboard shortcut N+I deferred to command palette feature (feature-040)

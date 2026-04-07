@@ -463,5 +463,27 @@
       "Empty state transitions when first cycle is created",
       "Visual comparison with Linear's actual Cycles layout"
     ]
+  },
+  {
+    "feature_id": "feature-031",
+    "tests_written": [
+      "InitiativeRow renders name",
+      "InitiativeRow renders status badges (active, planned, completed)",
+      "InitiativeRow renders project count and progress",
+      "InitiativeStatusBadge renders all three statuses",
+      "InitiativeProjectList renders linked projects with progress",
+      "InitiativeProjectList shows empty message when no projects",
+      "InitiativeProjectList shows progress percentage"
+    ],
+    "needs_deeper_qa": [
+      "Create initiative form submission with real API",
+      "Initiative detail page with linked projects and progress",
+      "Linking/unlinking projects to initiatives",
+      "Tab filtering (Active/Planned/Completed) with real data",
+      "PATCH initiative status transitions",
+      "DELETE initiative and cascade behavior",
+      "Keyboard shortcut N+I for creating initiatives",
+      "Visual comparison with Linear's actual Initiatives layout"
+    ]
   }
 ]

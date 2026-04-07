@@ -282,7 +282,7 @@
     "priority": "P8",
     "core": false,
     "dependent_on": ["feature-010", "infra-001"],
-    "build_pass": false,
+    "build_pass": true,
     "qa_pass": false
   },
   {
