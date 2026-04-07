@@ -117,9 +117,15 @@ describe("Empty state pages", () => {
     expect(screen.getByText("Create triage issue")).toBeDefined();
   });
 
-  it("Projects page shows 'No projects' with create CTA", () => {
+  it("Projects page shows 'No projects' with create CTA", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ projects: [] }),
+    });
     render(<ProjectsPage />);
-    expect(screen.getByText("No projects")).toBeDefined();
+    expect(
+      await screen.findByText("No projects", {}, { timeout: 2000 }),
+    ).toBeDefined();
     expect(screen.getByText("Create project")).toBeDefined();
   });
 

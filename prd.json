@@ -227,7 +227,7 @@
     "priority": "P5",
     "core": false,
     "dependent_on": ["layout-001", "infra-001"],
-    "build_pass": false,
+    "build_pass": true,
     "qa_pass": false
   },
   {

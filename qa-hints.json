@@ -330,5 +330,30 @@
       "Cycle, Due date, Creator, Estimate filters — not yet implemented as options",
       "Filter bar on board view — verify columns update correctly"
     ]
+  },
+  {
+    "feature_id": "feature-010",
+    "tests_written": [
+      "ProjectRow renders name with icon",
+      "ProjectRow renders health status",
+      "ProjectRow renders lead avatar",
+      "ProjectRow renders progress percentage",
+      "ProjectRow renders target date when provided",
+      "ProjectRow handles null target date",
+      "ProjectRow renders priority icon",
+      "ProjectRow renders as clickable link",
+      "ProjectRow renders 0% progress",
+      "ProjectRow renders 100% with completed style",
+      "ProjectStatusBadge renders planned/started/completed/paused/canceled"
+    ],
+    "needs_deeper_qa": [
+      "E2E: navigate to /projects/all and verify table renders",
+      "Projects with real data — progress calculation accuracy",
+      "Visual comparison with Linear's actual projects table",
+      "Project row click navigates to project detail page",
+      "Filter/sort on projects list — not yet implemented",
+      "Progress ring SVG rendering at various percentages",
+      "Empty state shows correctly when no projects exist"
+    ]
   }
 ]

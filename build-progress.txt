@@ -544,3 +544,46 @@ Date: 2026-04-07
 - Filters use AND logic across types, OR within same type (matching Linear behavior)
 - FilterBar is a controlled component — parent manages filter state via useFilters hook
 - SVG icons use aria-hidden with title elements to satisfy Biome accessibility rules
+
+## Iteration 16 — feature-010: Projects List Page
+Date: 2026-04-07
+
+### What was built
+- API route `GET /api/projects` — fetches all projects for user's workspace with lead info and progress calculation
+- ProjectRow component (`src/components/project-row.tsx`) — table row with:
+  - Emoji icon + project name (clickable link to /project/{slug}/overview)
+  - Health status text
+  - Priority icon
+  - Lead avatar
+  - Target date (formatted)
+  - Progress ring SVG with percentage
+- ProjectStatusBadge component (`src/components/project-status-badge.tsx`) — colored badge for planned/started/paused/completed/canceled
+- Projects page (`src/app/(app)/projects/page.tsx`) — full projects table:
+  - Header with "Projects" title and "All projects" tab
+  - Table columns: Name, Health, Priority, Lead, Target date, Status (progress %)
+  - Empty state fallback when no projects
+  - Footer with project count
+
+### Test results
+- 15 unit tests passing (tests/projects-list.test.tsx)
+  - 10 ProjectRow tests (name, icon, health, lead, progress, date, priority, link, 0%, 100%)
+  - 5 ProjectStatusBadge tests (all statuses)
+- 289 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/app/api/projects/route.ts — new API route
+- src/components/project-row.tsx — new ProjectRow component
+- src/components/project-status-badge.tsx — new ProjectStatusBadge component
+- src/app/(app)/projects/page.tsx — rewritten with projects table
+- tests/projects-list.test.tsx — new unit test file (15 tests)
+- tests/empty-states.test.tsx — updated Projects test with fetch mock
+- prd.json — marked feature-010 build_pass: true
+- qa-hints.json — added feature-010 QA hints
+
+### Decisions
+- Progress calculated from issue completedAt counts per project (server-side)
+- Health hardcoded as "No updates" for now (matches Linear's default when no project updates exist)
+- Project rows link to /project/{slug}/overview for future detail page
+- Progress ring uses SVG circles with stroke-dasharray for smooth rendering
