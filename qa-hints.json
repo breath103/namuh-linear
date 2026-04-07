@@ -63,5 +63,31 @@
       "Edge case: unicode/emoji in workspace name",
       "Default workflow states created correctly in DB"
     ]
+  },
+  {
+    "feature_id": "onboarding-002",
+    "tests_written": [
+      "renders page title and description",
+      "renders one email input row by default",
+      "renders role selector with member as default",
+      "adds another invite row",
+      "removes invite row",
+      "no remove button with one row",
+      "skip navigates to /",
+      "disables send when emails empty",
+      "enables send when email entered",
+      "submits invites and shows success",
+      "displays error on API failure",
+      "shows loading state",
+      "allows changing role",
+      "renders Linear logo"
+    ],
+    "needs_deeper_qa": [
+      "E2E: create workspace → invite page → send invites → redirect",
+      "Real SES email delivery for invitations",
+      "Invite link click-through and workspace join flow",
+      "Multiple invites with mixed valid/invalid emails",
+      "Skip button flow end-to-end"
+    ]
   }
 ]

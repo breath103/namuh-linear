@@ -5,6 +5,7 @@ const publicPaths = [
   "/signup",
   "/api/auth",
   "/create-workspace",
+  "/onboarding",
   "/api/workspaces",
 ];
 

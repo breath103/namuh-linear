@@ -122,3 +122,37 @@ Date: 2026-04-07
 - Default workflow states match Linear's categories: triage, backlog, unstarted, started, completed, canceled
 - Root page is a server component that queries DB to determine redirect target
 - Creator is automatically added as workspace owner and default team member
+
+## Iteration 5 — onboarding-002: Invite Team Members Flow
+Date: 2026-04-07
+
+### What was built
+- Invite team members page (`/onboarding/invite`) with Linear-style dark theme UI
+- API route `POST /api/workspaces/invite` — validates membership, sends invitation emails via SES
+- Multiple email input rows with role selector (Member/Admin/Guest)
+- Add/remove invite rows dynamically
+- Skip button to bypass invite step and go to dashboard
+- Success state with checkmark and auto-redirect after 2 seconds
+- Updated workspace creation to redirect to invite page after creating workspace
+- Updated middleware to allow `/onboarding` as public path
+
+### Test results
+- 14 unit tests passing (tests/invite-team.test.tsx)
+- 128 total tests passing (excluding pre-existing onboard-validation failures)
+- TypeScript typecheck: clean
+- Biome lint/format: clean
+
+### Files changed
+- src/app/api/workspaces/invite/route.ts — new invite API route
+- src/app/onboarding/invite/page.tsx — new invite team members page
+- src/app/create-workspace/page.tsx — updated redirect to invite page
+- src/middleware.ts — added /onboarding to public paths
+- tests/invite-team.test.tsx — new unit test file (14 tests)
+- tests/create-workspace.test.tsx — updated redirect expectation
+- prd.json — marked onboarding-002 build_pass: true
+
+### Decisions
+- Invite page receives workspaceId via search params from workspace creation redirect
+- Emails are sent via existing sendInvitationEmail utility (SES)
+- API validates workspace membership before sending invites
+- Invalid emails are reported per-invite in the response (partial success supported)

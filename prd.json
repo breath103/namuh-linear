@@ -106,7 +106,7 @@
     "priority": "P3",
     "core": false,
     "dependent_on": ["onboarding-001", "infra-004"],
-    "build_pass": false,
+    "build_pass": true,
     "qa_pass": false
   },
   {

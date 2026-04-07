@@ -41,8 +41,9 @@ export default function CreateWorkspacePage() {
         return;
       }
 
-      // Redirect to the main dashboard
-      router.push("/");
+      const data = await res.json();
+      // Redirect to invite team members step
+      router.push(`/onboarding/invite?workspaceId=${data.workspace.id}`);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
