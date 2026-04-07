@@ -59,6 +59,21 @@ describe("Create Workspace page", () => {
     expect(urlInput.value).toBe("hello-world-123");
   });
 
+  it("truncates auto-generated slugs to the supported maximum length", () => {
+    render(<CreateWorkspacePage />);
+    const nameInput = screen.getByLabelText("Workspace name");
+
+    fireEvent.change(nameInput, {
+      target: { value: "workspace-".repeat(10) },
+    });
+
+    const urlInput = screen.getByLabelText("Workspace URL") as HTMLInputElement;
+    expect(urlInput.value).toHaveLength(63);
+    expect(urlInput.value).toBe(
+      "workspace-workspace-workspace-workspace-workspace-workspace-wor",
+    );
+  });
+
   it("allows manual editing of the URL slug", () => {
     render(<CreateWorkspacePage />);
     const urlInput = screen.getByLabelText("Workspace URL");
@@ -134,6 +149,51 @@ describe("Create Workspace page", () => {
     await waitFor(() => {
       expect(screen.getByText("This URL is already taken")).toBeDefined();
     });
+  });
+
+  it("clears the error message when the user edits the form", async () => {
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: "This URL is already taken" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            workspace: { id: "ws-1", urlSlug: "updated-workspace" },
+            team: { id: "t-1", key: "UPD" },
+          }),
+      });
+    globalThis.fetch = mockFetch;
+
+    render(<CreateWorkspacePage />);
+    fireEvent.change(screen.getByLabelText("Workspace name"), {
+      target: { value: "Test Workspace" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create workspace" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("This URL is already taken")).toBeDefined();
+    });
+
+    fireEvent.change(screen.getByLabelText("Workspace name"), {
+      target: { value: "Updated Workspace" },
+    });
+
+    expect(screen.queryByText("This URL is already taken")).toBeNull();
+  });
+
+  it("applies browser max lengths that match the API limits", () => {
+    render(<CreateWorkspacePage />);
+
+    expect(
+      screen.getByLabelText("Workspace name").getAttribute("maxLength"),
+    ).toBe("255");
+    expect(
+      screen.getByLabelText("Workspace URL").getAttribute("maxLength"),
+    ).toBe("63");
   });
 
   it("shows loading state during submission", async () => {

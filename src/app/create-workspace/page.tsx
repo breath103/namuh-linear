@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  MAX_WORKSPACE_NAME_LENGTH,
+  MAX_WORKSPACE_SLUG_LENGTH,
+  sanitizeWorkspaceSlug,
+} from "@/lib/workspace-creation";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -12,13 +17,8 @@ export default function CreateWorkspacePage() {
 
   function handleNameChange(value: string) {
     setName(value);
-    // Auto-generate slug from name
-    const slug = value
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-    setUrlSlug(slug);
+    setError("");
+    setUrlSlug(sanitizeWorkspaceSlug(value));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -119,6 +119,7 @@ export default function CreateWorkspacePage() {
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="My Workspace"
               required
+              maxLength={MAX_WORKSPACE_NAME_LENGTH}
               // biome-ignore lint/a11y/noAutofocus: workspace name should be focused on page load
               autoFocus
               className="w-full rounded-md border border-[#26262a] bg-[#18181b] px-3.5 py-[10px] text-[13px] text-white placeholder-[#555] outline-none transition-colors focus:border-[#5E6AD2]"
@@ -141,9 +142,13 @@ export default function CreateWorkspacePage() {
                 id="workspace-url"
                 type="text"
                 value={urlSlug}
-                onChange={(e) => setUrlSlug(e.target.value)}
+                onChange={(e) => {
+                  setError("");
+                  setUrlSlug(sanitizeWorkspaceSlug(e.target.value));
+                }}
                 placeholder="my-workspace"
                 required
+                maxLength={MAX_WORKSPACE_SLUG_LENGTH}
                 className="w-full bg-transparent px-1 py-[10px] text-[13px] text-white placeholder-[#555] outline-none"
               />
             </div>

@@ -7,49 +7,14 @@ import {
   workflowState,
   workspace,
 } from "@/lib/db/schema";
+import {
+  getDefaultWorkflowStates,
+  sanitizeWorkspaceSlug,
+  validateWorkspaceName,
+} from "@/lib/workspace-creation";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-
-const DEFAULT_WORKFLOW_STATES = [
-  {
-    name: "Triage",
-    category: "triage" as const,
-    color: "#f59e0b",
-    position: 0,
-  },
-  {
-    name: "Backlog",
-    category: "backlog" as const,
-    color: "#6b6f76",
-    position: 0,
-    isDefault: true,
-  },
-  {
-    name: "Todo",
-    category: "unstarted" as const,
-    color: "#6b6f76",
-    position: 0,
-  },
-  {
-    name: "In Progress",
-    category: "started" as const,
-    color: "#f59e0b",
-    position: 0,
-  },
-  {
-    name: "Done",
-    category: "completed" as const,
-    color: "#22c55e",
-    position: 0,
-  },
-  {
-    name: "Canceled",
-    category: "canceled" as const,
-    color: "#6b6f76",
-    position: 0,
-  },
-];
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -60,18 +25,16 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { name, urlSlug } = body as { name: string; urlSlug: string };
 
-  if (!name?.trim() || !urlSlug?.trim()) {
+  const nameError = validateWorkspaceName(name ?? "");
+
+  if (nameError || !urlSlug?.trim()) {
     return NextResponse.json(
-      { error: "Name and URL slug are required" },
+      { error: nameError ?? "Name and URL slug are required" },
       { status: 400 },
     );
   }
 
-  const slug = urlSlug
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+  const slug = sanitizeWorkspaceSlug(urlSlug);
 
   if (slug.length < 2 || slug.length > 63) {
     return NextResponse.json(
@@ -131,12 +94,7 @@ export async function POST(request: Request) {
     });
 
     // Create default workflow states
-    await tx.insert(workflowState).values(
-      DEFAULT_WORKFLOW_STATES.map((state) => ({
-        ...state,
-        teamId: newTeam.id,
-      })),
-    );
+    await tx.insert(workflowState).values(getDefaultWorkflowStates(newTeam.id));
 
     return { workspace: newWorkspace, team: newTeam };
   });

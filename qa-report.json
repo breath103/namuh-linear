@@ -280,5 +280,41 @@
       }
     ],
     "fix_description": "Replaced the single dark-only login screen with a shared theme-aware auth page for `/login` and `/signup`, matched Linear's login/signup copy and icon treatment more closely, and added regression coverage for the signup affordance and signup route. `qa_pass` is now true for auth-004; the remaining full-E2E failures are the pre-existing unrelated command-palette specs."
+  },
+  {
+    "feature_id": "onboarding-001",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; all 555 unit tests passed after the onboarding fixes.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the app still loaded successfully on `http://localhost:3015`.",
+      "Ran `make check`; typecheck plus Biome lint/format passed.",
+      "Ran `make test-e2e` because the onboarding fix touched route/page behavior; smoke still passed and the only failing specs were unrelated command-palette E2E tests that time out before any palette dialog appears.",
+      "Verified the authenticated root redirect with a real Better Auth session and zero memberships by deleting the QA user's workspace rows from local Postgres, navigating to `/`, and confirming the browser landed on `/create-workspace`.",
+      "Verified slug uniqueness against the real database by reserving `qa-duplicate-slug`, submitting the onboarding form with that slug, and confirming the page rendered `This URL is already taken`.",
+      "Verified the fixed UX path in the browser: editing the form after the duplicate-slug error immediately cleared the stale error state, and the inputs now enforce `255`/`63` character limits for workspace name and URL slug.",
+      "Verified the long-name edge case against the real API with the active browser session: `POST /api/workspaces` with a 300-character name and short slug now returns `400 {\"error\":\"Workspace name must be 255 characters or fewer\"}` instead of a `500`.",
+      "Queried Postgres after the long-name failure and confirmed there were no partial `workspace`, orphaned `member`, orphaned `team`, or orphaned `workflow_state` rows.",
+      "Verified the unicode/emoji input edge case in the browser: entering `한글 🚀 QA Team` produced the sanitized slug `qa-team` instead of breaking the form.",
+      "Completed the real onboarding flow from `/create-workspace` with `Onboarding QA Team`, confirmed redirect to the invite step, skipped invites, then navigated back to `/` and confirmed the app redirected to the new team dashboard. Saved QA evidence to `ralph/screenshots/qa/onboarding-001-attempt-1-team-page.jpg`.",
+      "Queried Postgres for the created workspace and confirmed the default team key `ONB` plus six default workflow states with the expected categories and ordered positions `0..5`, with `Backlog` marked as the default state."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "Workspace creation returned a server-side `500` for overly long workspace names instead of validating the input.",
+        "expected": "The onboarding API should reject names longer than the database limit with a clear `400` validation error and should not leave behind partial rows.",
+        "actual": "Submitting a 300-character workspace name with a short slug returned `500` and an empty response body from `POST /api/workspaces`.",
+        "reproduction": "1. Log in with the QA Google account and ensure the session is active.\n2. Send `POST /api/workspaces` with `{ \"name\": \"A\" repeated 300 times, \"urlSlug\": \"long-name-check\" }` using the active browser session.\n3. Observe the pre-fix `500` response instead of a validation error."
+      },
+      {
+        "severity": "major",
+        "description": "New workspaces created all default workflow states with `position = 0`, leaving downstream lists and group ordering without a stable sequence.",
+        "expected": "The seeded workflow states should have ordered positions that preserve the intended sequence (Triage, Backlog, Todo, In Progress, Done, Canceled).",
+        "actual": "The real database stored all six default workflow states for a new team with `position = 0`.",
+        "reproduction": "1. Create a new workspace through `/create-workspace`.\n2. Query `workflow_state` rows for the created team.\n3. Observe that every inserted state has `position = 0` before the fix."
+      }
+    ],
+    "fix_description": "Added shared workspace-name/slug rules for the page and API, enforced server-side workspace-name validation to prevent the long-name `500`, cleared stale onboarding errors when the form changes, and seeded default workflow states with stable sequential positions."
   }
 ]
