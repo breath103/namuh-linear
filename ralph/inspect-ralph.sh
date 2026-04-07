@@ -17,7 +17,7 @@ TARGET_URL="${1:?Usage: $0 <target-url> [iterations]}"
 ITERATIONS="${2:-999}"
 
 [ -f ralph-config.json ] || { echo "ERROR: ralph-config.json not found. Run ./ralph/onboard.sh first."; exit 1; }
-BROWSER_AGENT=$(python3 -c "import json; print(json.load(open('ralph-config.json')).get('browserAgent', 'ever'))" 2>/dev/null || echo "ever")
+BROWSER_AGENT=$(uv run python3 -c "import json; print(json.load(open('ralph-config.json')).get('browserAgent', 'ever'))" 2>/dev/null || echo "ever")
 
 echo "=== RALPH-TO-RALPH: Phase 1 (Inspect) ==="
 echo "Target: $TARGET_URL"

@@ -35,10 +35,10 @@ echo ""
 touch build-progress.txt
 
 count_passes() {
-  python3 -c "import json; d=json.load(open('prd.json')); print(sum(1 for x in d if x.get('build_pass', False)))" 2>/dev/null || echo "0"
+  uv run python3 -c "import json; d=json.load(open('prd.json')); print(sum(1 for x in d if x.get('build_pass', False)))" 2>/dev/null || echo "0"
 }
 total_tasks() {
-  python3 -c "import json; print(len(json.load(open('prd.json'))))" 2>/dev/null || echo "0"
+  uv run python3 -c "import json; print(len(json.load(open('prd.json'))))" 2>/dev/null || echo "0"
 }
 
 for ((i=1; i<=$ITERATIONS; i++)); do
