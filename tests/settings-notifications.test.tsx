@@ -1,7 +1,26 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
+import { NotificationChannelPage } from "@/app/(app)/settings/account/notifications/notifications-client";
 import NotificationsSettingsPage from "@/app/(app)/settings/account/notifications/page";
+
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    ...props
+  }: { children: React.ReactNode; href: string; [key: string]: unknown }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
@@ -9,53 +28,352 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Account Notifications Page", () => {
-  afterEach(() => {
-    cleanup();
-  });
+  it("renders Notifications heading", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
 
-  it("renders Notifications heading", () => {
+      if (url === "/api/account/notifications" && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            accountNotifications: {
+              updatesFromLinear: {
+                showInSidebar: true,
+                newsletter: false,
+                marketing: false,
+              },
+            },
+          }),
+        } as Response;
+      }
+
+      if (url === "/api/account/notifications" && init?.method === "PATCH") {
+        return {
+          ok: true,
+          json: async () => JSON.parse(String(init.body)),
+        } as Response;
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
     render(<NotificationsSettingsPage />);
     expect(
       screen.getByRole("heading", { name: "Notifications" }),
     ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("link", { name: "Desktop notification settings" }),
+      ).toHaveAttribute("href", "/settings/account/notifications/desktop");
+    });
   });
 
-  it("renders notification channel cards", () => {
-    render(<NotificationsSettingsPage />);
-    expect(screen.getByText("Desktop")).toBeInTheDocument();
-    expect(screen.getByText("Mobile")).toBeInTheDocument();
-    expect(screen.getByText("Email")).toBeInTheDocument();
-    expect(screen.getByText("Slack")).toBeInTheDocument();
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
   });
 
-  it("shows enabled/disabled status on channels", () => {
+  it("renders notification channel cards as links", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+
+      if (url === "/api/account/notifications" && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            accountNotifications: {
+              channels: {
+                mobile: {
+                  events: {
+                    assignments: true,
+                    statusChanges: true,
+                    mentions: true,
+                    comments: true,
+                  },
+                },
+              },
+            },
+          }),
+        } as Response;
+      }
+
+      if (url === "/api/account/notifications" && init?.method === "PATCH") {
+        return {
+          ok: true,
+          json: async () => JSON.parse(String(init.body)),
+        } as Response;
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
     render(<NotificationsSettingsPage />);
-    const enabledBadges = screen.getAllByText("Enabled");
-    const disabledBadges = screen.getAllByText("Disabled");
-    expect(enabledBadges).toHaveLength(2); // Desktop + Mobile
-    expect(disabledBadges).toHaveLength(2); // Email + Slack
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("link", { name: "Desktop notification settings" }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("link", { name: "Mobile notification settings" }),
+    ).toHaveAttribute("href", "/settings/account/notifications/mobile");
+    expect(
+      screen.getByRole("link", { name: "Email notification settings" }),
+    ).toHaveAttribute("href", "/settings/account/notifications/email");
+    expect(
+      screen.getByRole("link", { name: "Slack notification settings" }),
+    ).toHaveAttribute("href", "/settings/account/notifications/slack");
   });
 
-  it("renders Updates from Linear section", () => {
+  it("shows enabled/disabled status on channels", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+
+      if (url === "/api/account/notifications" && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            accountNotifications: {
+              channels: {
+                desktop: {
+                  events: {
+                    assignments: true,
+                    statusChanges: true,
+                    mentions: true,
+                    comments: false,
+                  },
+                },
+                mobile: {
+                  events: {
+                    assignments: true,
+                    statusChanges: true,
+                    mentions: true,
+                    comments: true,
+                  },
+                },
+              },
+            },
+          }),
+        } as Response;
+      }
+
+      if (url === "/api/account/notifications" && init?.method === "PATCH") {
+        return {
+          ok: true,
+          json: async () => JSON.parse(String(init.body)),
+        } as Response;
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
     render(<NotificationsSettingsPage />);
-    expect(screen.getByText("Updates from Linear")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Enabled for assignments, status changes, and 1 other",
+        ),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText("Enabled for all notifications"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Disabled")).toHaveLength(2);
+  });
+
+  it("renders Updates from Linear section", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+
+      if (url === "/api/account/notifications" && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            accountNotifications: {
+              updatesFromLinear: {
+                showInSidebar: true,
+                newsletter: false,
+                marketing: false,
+              },
+            },
+          }),
+        } as Response;
+      }
+
+      if (url === "/api/account/notifications" && init?.method === "PATCH") {
+        return {
+          ok: true,
+          json: async () => JSON.parse(String(init.body)),
+        } as Response;
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
+    render(<NotificationsSettingsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Updates from Linear")).toBeInTheDocument();
+    });
     expect(screen.getByText("Changelog")).toBeInTheDocument();
-    expect(screen.getByText("Show in sidebar")).toBeInTheDocument();
-    expect(screen.getByText("Newsletter")).toBeInTheDocument();
+    expect(screen.getByText("Show updates in sidebar")).toBeInTheDocument();
+    expect(screen.getByText("Changelog newsletter")).toBeInTheDocument();
     expect(screen.getByText("Marketing")).toBeInTheDocument();
   });
 
-  it("renders Other section with toggles", () => {
+  it("renders Other section with toggles", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+
+      if (url === "/api/account/notifications" && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            accountNotifications: {
+              other: {
+                inviteAccepted: true,
+                privacyAndLegalUpdates: true,
+                dpa: false,
+              },
+            },
+          }),
+        } as Response;
+      }
+
+      if (url === "/api/account/notifications" && init?.method === "PATCH") {
+        return {
+          ok: true,
+          json: async () => JSON.parse(String(init.body)),
+        } as Response;
+      }
+
+      throw new Error(`Unhandled fetch: ${url}`);
+    });
+
     render(<NotificationsSettingsPage />);
-    expect(screen.getByText("Other")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText("Other")).toBeInTheDocument();
+    });
     expect(screen.getByText("Invite accepted")).toBeInTheDocument();
     expect(screen.getByText("Privacy and legal updates")).toBeInTheDocument();
     expect(screen.getByText("DPA")).toBeInTheDocument();
   });
 
-  it("renders toggle switches", () => {
+  it("persists root-level toggles to the notifications API", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input);
+
+        if (url === "/api/account/notifications" && !init?.method) {
+          return {
+            ok: true,
+            json: async () => ({
+              accountNotifications: {
+                updatesFromLinear: {
+                  showInSidebar: true,
+                  newsletter: false,
+                  marketing: false,
+                },
+              },
+            }),
+          } as Response;
+        }
+
+        if (url === "/api/account/notifications" && init?.method === "PATCH") {
+          return {
+            ok: true,
+            json: async () => JSON.parse(String(init.body)),
+          } as Response;
+        }
+
+        throw new Error(`Unhandled fetch: ${url}`);
+      });
+
     render(<NotificationsSettingsPage />);
-    const toggles = screen.getAllByRole("switch");
-    expect(toggles.length).toBeGreaterThanOrEqual(6);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("switch", { name: "Marketing" }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("switch", { name: "Marketing" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/account/notifications",
+        expect.objectContaining({
+          method: "PATCH",
+          body: expect.stringContaining('"marketing":true'),
+        }),
+      );
+    });
+  });
+
+  it("renders and persists per-event channel configuration", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input, init) => {
+        const url = String(input);
+
+        if (url === "/api/account/notifications" && !init?.method) {
+          return {
+            ok: true,
+            json: async () => ({
+              accountNotifications: {
+                channels: {
+                  desktop: {
+                    events: {
+                      assignments: true,
+                      statusChanges: true,
+                      mentions: true,
+                      comments: false,
+                    },
+                  },
+                },
+              },
+            }),
+          } as Response;
+        }
+
+        if (url === "/api/account/notifications" && init?.method === "PATCH") {
+          return {
+            ok: true,
+            json: async () => JSON.parse(String(init.body)),
+          } as Response;
+        }
+
+        throw new Error(`Unhandled fetch: ${url}`);
+      });
+
+    render(<NotificationChannelPage channel="desktop" />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: "Desktop" }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText("Assignments")).toBeInTheDocument();
+    expect(screen.getByText("Status changes")).toBeInTheDocument();
+    expect(screen.getByText("Mentions")).toBeInTheDocument();
+    expect(screen.getByText("Comments and replies")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("switch", { name: "Comments and replies" }),
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/account/notifications",
+        expect.objectContaining({
+          method: "PATCH",
+          body: expect.stringContaining('"comments":true'),
+        }),
+      );
+    });
   });
 });

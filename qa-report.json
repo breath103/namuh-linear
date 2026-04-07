@@ -1261,5 +1261,48 @@
       }
     ],
     "fix_description": "Added a real authenticated account-profile API backed by `user.settings`, persisted username and avatar state through that API, wired the profile page to load/save through it, exposed a real file input with preview-backed avatar upload, and implemented a confirmed leave-workspace flow that removes the active membership, updates the active-workspace cookie, and redirects safely."
+  },
+  {
+    "feature_id": "settings-004",
+    "attempt": 1,
+    "status": "pass",
+    "tested_steps": [
+      "Ran `make test`; the full Vitest suite passed before edits.",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts`; the smoke suite passed (`2` Playwright tests including auth setup).",
+      "Logged into the clone with Google OAuth in Ever and opened `/settings/account/notifications`.",
+      "Confirmed the pre-fix browser behavior was incomplete: the notification channel rows were not interactive links, `fetch('/api/account/notifications')` returned `404`, and toggle changes reset after reload because the page only used local component state.",
+      "Implemented a real notifications settings model backed by `user.settings.accountNotifications`, added authenticated `GET/PATCH /api/account/notifications`, added channel subpages for Desktop/Mobile/Email/Slack, and added regression tests for root-page persistence, subpage persistence, and the new API route.",
+      "Ran `make check && make test` after the fix; typecheck, Biome, and the full Vitest suite all passed (`662` unit tests passed).",
+      "Ran `npx playwright test tests/e2e/smoke.spec.ts` again after the fix; the smoke suite passed (`2` Playwright tests including auth setup).",
+      "Re-tested the fixed UI in Ever: the root page now shows clickable Desktop/Mobile/Email/Slack channel links, clicking Desktop navigates to `/settings/account/notifications/desktop`, and the per-event toggles render there.",
+      "Enabled `Comments and replies` on the Desktop subpage, reloaded `/settings/account/notifications/desktop`, and verified the toggle persisted plus the root-page Desktop summary changed to `Enabled for all notifications`.",
+      "Enabled the root-page `Marketing` toggle, reloaded `/settings/account/notifications`, and verified it remained enabled.",
+      "Queried the live authenticated API in-browser with `fetch('/api/account/notifications', { credentials: 'include' })` and confirmed it returned the persisted Desktop `comments: true` and `marketing: true` values.",
+      "Saved QA evidence screenshots to `ralph/screenshots/qa/settings-004-attempt-1-notifications-root.jpg` and `ralph/screenshots/qa/settings-004-attempt-1-notifications-desktop.jpg`."
+    ],
+    "bugs_found": [
+      {
+        "severity": "major",
+        "description": "Notification channel rows were static cards instead of links to channel-specific settings.",
+        "expected": "Desktop, Mobile, Email, and Slack should each open a dedicated subpage so users can configure that channel per event type.",
+        "actual": "Before the fix, the page rendered four plain `div` cards with no navigation target or subpages.",
+        "reproduction": "1. Sign in and open `/settings/account/notifications`.\n2. Try to click `Desktop`, `Mobile`, `Email`, or `Slack`.\n3. Observe that the rows are not links and no channel-specific settings page exists."
+      },
+      {
+        "severity": "major",
+        "description": "Notifications settings had no real backend persistence path.",
+        "expected": "The page should load and save notification settings through an authenticated API so values survive reloads and new sessions.",
+        "actual": "Before the fix, `GET /api/account/notifications` returned `404` and the page only used local `useState` values.",
+        "reproduction": "1. Sign in and open `/settings/account/notifications`.\n2. In the browser console or page context, request `/api/account/notifications`.\n3. Observe a `404` response instead of notification settings JSON."
+      },
+      {
+        "severity": "major",
+        "description": "Root-page toggles and per-event notification settings reset after refresh.",
+        "expected": "Changing a notification toggle should persist immediately and still be enabled after a page reload.",
+        "actual": "Before the fix, toggles only changed local React state, so values reverted to their hard-coded defaults after navigation or refresh.",
+        "reproduction": "1. Sign in and open `/settings/account/notifications`.\n2. Toggle any setting such as `Newsletter`.\n3. Reload the page.\n4. Observe that the setting has reverted."
+      }
+    ],
+    "fix_description": "Added a real account-notifications settings model in `user.settings`, implemented authenticated `GET/PATCH /api/account/notifications`, replaced the static cards with linked channel pages, and wired both the overview toggles and the per-channel event toggles to save and reload persisted values."
   }
 ]
