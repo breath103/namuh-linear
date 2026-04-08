@@ -8,8 +8,6 @@
 
 A fully functional clone of [Linear](https://linear.app) built with Next.js 16, TypeScript, and modern infrastructure. Fast, self-hostable, and designed for teams that live in their terminal.
 
-![Screenshot](docs/screenshot.png)
-
 ---
 
 ## About
