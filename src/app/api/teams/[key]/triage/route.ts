@@ -4,10 +4,10 @@ import {
   issue,
   issueLabel,
   label,
-  team,
   user,
   workflowState,
 } from "@/lib/db/schema";
+import { getTeamByKey } from "@/lib/teams";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -23,17 +23,10 @@ export async function GET(
 
   const { key } = await params;
 
-  const teams = await db
-    .select({ id: team.id, name: team.name, key: team.key })
-    .from(team)
-    .where(eq(team.key, key))
-    .limit(1);
-
-  if (teams.length === 0) {
+  const teamRecord = await getTeamByKey(key);
+  if (!teamRecord) {
     return NextResponse.json({ error: "Team not found" }, { status: 404 });
   }
-
-  const teamRecord = teams[0];
 
   // Find triage workflow states
   const triageStates = await db

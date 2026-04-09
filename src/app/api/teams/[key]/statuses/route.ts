@@ -3,11 +3,11 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   issue,
-  member,
   team,
   teamMember,
   workflowState,
 } from "@/lib/db/schema";
+import { getWorkspaceMember } from "@/lib/teams";
 import { and, asc, count, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -25,12 +25,7 @@ async function findAccessibleTeam(key: string, userId: string) {
   const workspaceId = await resolveActiveWorkspaceId(userId);
   if (!workspaceId) return null;
 
-  const [workspaceMember] = await db
-    .select({ id: member.id })
-    .from(member)
-    .where(and(eq(member.workspaceId, workspaceId), eq(member.userId, userId)))
-    .limit(1);
-
+  const workspaceMember = await getWorkspaceMember(workspaceId, userId);
   if (!workspaceMember) return null;
 
   const [teamRecord] = await db
