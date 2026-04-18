@@ -1,14 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import {
-  cycle,
-  issue,
-  issueLabel,
-  label,
-  project,
-  user,
-  workflowState,
-} from "@/lib/db/schema";
+import { cycle, issue, project, user, workflowState } from "@/lib/db/schema";
+import { getLabelsForIssues } from "@/lib/issue-labels";
 import { getTeamByKey } from "@/lib/teams";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
@@ -66,30 +59,7 @@ export async function GET(
 
   // Get labels for all issues
   const issueIds = issues.map((i) => i.id);
-  let labelsMap: Record<string, { name: string; color: string }[]> = {};
-
-  if (issueIds.length > 0) {
-    const issueLabelRows = await db
-      .select({
-        issueId: issueLabel.issueId,
-        labelName: label.name,
-        labelColor: label.color,
-      })
-      .from(issueLabel)
-      .innerJoin(label, eq(issueLabel.labelId, label.id))
-      .where(inArray(issueLabel.issueId, issueIds));
-
-    labelsMap = {};
-    for (const row of issueLabelRows) {
-      if (!labelsMap[row.issueId]) {
-        labelsMap[row.issueId] = [];
-      }
-      labelsMap[row.issueId].push({
-        name: row.labelName,
-        color: row.labelColor,
-      });
-    }
-  }
+  const labelsMap = await getLabelsForIssues(issueIds);
 
   const creatorIds = [
     ...new Set(
